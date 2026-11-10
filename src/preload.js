@@ -16,4 +16,5 @@ contextBridge.exposeInMainWorld('api', {
 
   // settings panel
   closePanel: () => ipcRenderer.send('close-panel'),
+  installUpdate: () => ipcRenderer.send('install-update'),
 });

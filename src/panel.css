@@ -100,6 +100,41 @@ input:focus-visible, button:focus-visible {
   outline-offset: 2px;
 }
 
+/* ---------- update banner ---------- */
+
+.update {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--ink);
+  color: #fff;
+}
+
+.update[hidden] { display: none; }
+.update p { margin: 0; flex: 1; font-weight: 700; line-height: 1.35; }
+
+.update button {
+  flex: none;
+  border: 0;
+  border-radius: 9px;
+  padding: 6px 10px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.update button[hidden] { display: none; }
+
+.version {
+  margin: 2px 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 /* ---------- time ---------- */
 
 .time {

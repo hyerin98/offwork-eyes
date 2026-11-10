@@ -197,6 +197,8 @@ function applySettings(s) {
   buddy.classList.toggle('no-body', !s.bodyColor);
   if (s.bodyColor) buddy.style.setProperty('--body', s.bodyColor);
   renderPupils(s);
+  const u = s.update || {};
+  bubble.classList.toggle('has-update', u.status === 'available' || u.status === 'ready');
   if (offChanged) lastMsg = '';
   updateCountdown();
   relayout();

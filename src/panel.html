@@ -15,6 +15,11 @@
   </header>
 
   <main>
+    <div id="update" class="update" hidden>
+      <p id="update-text"></p>
+      <button id="update-btn" type="button" hidden></button>
+    </div>
+
     <section>
       <h2>퇴근 시간</h2>
       <input id="offTime" class="time" type="time" required>
@@ -53,6 +58,7 @@
         <input id="openAtLogin" type="checkbox"><i></i>
       </label>
     </section>
+    <p id="version" class="version"></p>
   </main>
 
   <template id="color-tpl">

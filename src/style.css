@@ -78,6 +78,20 @@ html, body {
 
 #text { position: relative; z-index: 1; }
 
+/* small dot telling the user a new version is waiting (click opens the panel) */
+#bubble.has-update::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #f96420;
+  border: 2px solid #fff;
+  z-index: 2;
+}
+
 /* ---------- character ---------- */
 
 #buddy {

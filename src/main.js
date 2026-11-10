@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Tray, Menu, screen, ipcMain, nativeImage, powerMonitor } = require('electron');
 const path = require('path');
 const store = require('./store');
+const updater = require('./updater');
 
 // A 240px widget doesn't need the GPU process; software compositing saves
 // RAM and avoids waking the GPU.
@@ -99,7 +100,7 @@ function applySize() {
 // ---------- settings ----------
 
 function rendererSettings() {
-  return { ...settings, scale: SIZES[settings.size] || 1 };
+  return { ...settings, scale: SIZES[settings.size] || 1, appVersion: app.getVersion(), update: updater.getState() };
 }
 
 function pushSettings() {
@@ -286,9 +287,20 @@ function resetPosition() {
   store.save();
 }
 
+function updateMenuItems() {
+  const u = updater.getState();
+  if (u.status === 'ready') return [{ label: `재시작해서 v${u.version}로 업데이트`, click: updater.install }, { type: 'separator' }];
+  if (u.status === 'available') {
+    const label = u.mode === 'page' ? `v${u.version} 다운로드 페이지 열기` : `v${u.version}로 업데이트`;
+    return [{ label, click: updater.install }, { type: 'separator' }];
+  }
+  return [];
+}
+
 function buildMenu() {
   const visible = win && win.isVisible();
   return Menu.buildFromTemplate([
+    ...updateMenuItems(),
     { label: `퇴근 시간: ${settings.offTime}`, enabled: false },
     { label: '설정 열기…', click: openPanel },
     { type: 'separator' },
@@ -317,6 +329,7 @@ function createTray() {
 ipcMain.handle('get-settings', () => rendererSettings());
 ipcMain.on('update-settings', (_e, patch) => update(sanitize(patch)));
 ipcMain.on('close-panel', () => panel && panel.close());
+ipcMain.on('install-update', () => updater.install());
 
 ipcMain.on('hit-rects', (_e, rects) => {
   hitRects = Array.isArray(rects) ? rects : [];
@@ -357,6 +370,7 @@ app.whenReady().then(() => {
   if (isMac && app.dock) app.dock.hide();
   createWindow();
   createTray();
+  updater.start(() => pushSettings());
 
   const pause = () => stopPolling();
   const resume = () => {

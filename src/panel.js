@@ -164,6 +164,33 @@ for (const key of ['alwaysOnTop', 'openAtLogin']) {
   refreshers.push(() => { $(key).checked = settings[key]; });
 }
 
+// ---------- update banner & version ----------
+
+const UPDATE_COPY = {
+  available: {
+    script: (v) => [`새 버전 v${v}이 나왔어요`, '업데이트'],
+    page: (v) => [`새 버전 v${v}이 나왔어요`, '받으러 가기'],
+  },
+  downloading: (v) => [`새 버전 v${v}을 내려받고 있어요`, null],
+  ready: (v) => [`새 버전 v${v}이 준비됐어요`, '재시작'],
+  installing: () => ['업데이트하는 중이에요. 잠시 후 다시 열려요.', null],
+};
+
+$('update-btn').addEventListener('click', () => api.installUpdate());
+refreshers.push(() => {
+  const u = settings.update || {};
+  let copy = UPDATE_COPY[u.status];
+  if (copy && typeof copy === 'object') copy = copy[u.mode];
+  $('update').hidden = !copy;
+  if (copy) {
+    const [text, button] = copy(u.version);
+    $('update-text').textContent = text;
+    $('update-btn').hidden = !button;
+    $('update-btn').textContent = button || '';
+  }
+  $('version').textContent = `현재 버전 v${settings.appVersion}`;
+});
+
 // ---------- wiring ----------
 
 $('close').addEventListener('click', () => api.closePanel());
