@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'">
+  <title>스포이드</title>
+  <link rel="stylesheet" href="eyedropper.css">
+</head>
+<body>
+  <canvas id="shot"></canvas>
+  <div id="loupe" hidden>
+    <canvas id="zoom" width="132" height="132"></canvas>
+    <div class="info"><i id="swatch"></i><span id="hex"></span></div>
+  </div>
+  <p id="hint">클릭해서 색을 고르세요 · Esc로 취소</p>
+  <script src="eyedropper.js"></script>
+</body>
+</html>

@@ -17,4 +17,11 @@ contextBridge.exposeInMainWorld('api', {
   // settings panel
   closePanel: () => ipcRenderer.send('close-panel'),
   installUpdate: () => ipcRenderer.send('install-update'),
+  platform: process.platform,
+  startEyedropper: (key) => ipcRenderer.send('eyedropper-start', key),
+
+  // eyedropper overlay
+  onEyedropperImage: (cb) => ipcRenderer.on('eyedropper-image', (_e, url, bounds) => cb(url, bounds)),
+  eyedropperPick: (hex) => ipcRenderer.send('eyedropper-pick', hex),
+  eyedropperCancel: () => ipcRenderer.send('eyedropper-cancel'),
 });

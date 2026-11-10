@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, screen, ipcMain, nativeImage, powerMonitor } = require('electron');
+const { app, BrowserWindow, Tray, Menu, screen, ipcMain, nativeImage, powerMonitor, desktopCapturer } = require('electron');
 const path = require('path');
 const store = require('./store');
 const updater = require('./updater');
@@ -181,9 +181,11 @@ function openPanel() {
   panel.once('ready-to-show', () => {
     panel.show();
     panel.focus();
+    setTimeout(() => panel && prepareEyedropper(), 300); // so the eyedropper opens instantly
   });
   panel.on('closed', () => {
     panel = null;
+    discardPrepared();
     if (settings.firstRun) {
       settings.firstRun = false;
       store.save();
@@ -194,6 +196,108 @@ function openPanel() {
 function togglePanel() {
   if (panel) panel.close();
   else openPanel();
+}
+
+// ---------- eyedropper ----------
+// Chromium's EyeDropper only samples inside the app's own window under
+// Electron on Windows, so we freeze a screenshot of every display and show it
+// in a full-screen overlay where the user can pick any pixel.
+//
+// To make it feel instant:
+//  - while the settings panel is open, the overlays are pre-created hidden,
+//    so clicking the button only has to show them;
+//  - they open transparent (the live screen shows through, the cursor turns
+//    into a crosshair) and the capture (~0.5s) runs after they're visible;
+//  - a click made before the capture is ready is remembered and applied.
+
+let prepared = null; // [{ w, d, loaded }] hidden overlays waiting to be used
+let droppers = [];   // overlays currently in use
+let dropperKey = null;
+
+function captureDisplay(d) {
+  // Capture at the display's own physical resolution so pixels map 1:1.
+  const size = { width: Math.round(d.size.width * d.scaleFactor), height: Math.round(d.size.height * d.scaleFactor) };
+  return desktopCapturer.getSources({ types: ['screen'], thumbnailSize: size }).then((sources) =>
+    sources.find((s) => s.display_id === String(d.id)) || (screen.getAllDisplays().length === 1 ? sources[0] : null));
+}
+
+function prepareEyedropper() {
+  if (prepared || isMac) return; // macOS uses the native system color sampler
+  prepared = screen.getAllDisplays().map((d) => {
+    const w = new BrowserWindow({
+      ...d.bounds,
+      frame: false,
+      transparent: true,
+      resizable: false,
+      movable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      skipTaskbar: true,
+      hasShadow: false,
+      enableLargerThanScreen: true,
+      show: false,
+      backgroundColor: '#00000000',
+      webPreferences: { preload: PRELOAD, spellcheck: false, devTools: !app.isPackaged },
+    });
+    w.setAlwaysOnTop(true, 'screen-saver');
+    w.loadFile(path.join(__dirname, 'eyedropper.html'));
+    const loaded = new Promise((resolve) => w.webContents.once('did-finish-load', resolve));
+    w.on('closed', () => {
+      droppers = droppers.filter((x) => x !== w);
+      if (prepared && prepared.some((p) => p.w === w)) prepared = null;
+    });
+    return { w, d, loaded };
+  });
+}
+
+function discardPrepared() {
+  if (!prepared) return;
+  for (const { w } of prepared) if (!w.isDestroyed()) w.destroy();
+  prepared = null;
+}
+
+function startEyedropper(key) {
+  if (droppers.length || !['bodyColor', 'pupilColor'].includes(key)) return;
+  dropperKey = key;
+  prepareEyedropper(); // no-op when already prepared
+  const overlays = prepared;
+  prepared = null;
+
+  for (const { w, d, loaded } of overlays) {
+    droppers.push(w);
+    loaded
+      .then(() => {
+        if (w.isDestroyed()) return null;
+        w.show();
+        w.setBounds(d.bounds); // Windows may clamp a new window to the work area; cover the taskbar too
+        w.focus();
+        // Capturing blocks the main thread for a while, so let the overlay paint first.
+        return new Promise((r) => setTimeout(r, 30)).then(() => captureDisplay(d));
+      })
+      .then((src) => {
+        if (w.isDestroyed()) return;
+        if (!src) throw new Error(`no capture for display ${d.id}`);
+        // bounds let the renderer align the image even if the window got clamped
+        w.webContents.send('eyedropper-image', src.thumbnail.toDataURL(), d.bounds);
+      })
+      .catch((e) => {
+        console.warn('screen capture failed', e);
+        endEyedropper(null);
+      });
+  }
+}
+
+function endEyedropper(hex) {
+  const key = dropperKey;
+  dropperKey = null;
+  for (const w of droppers) if (!w.isDestroyed()) w.destroy();
+  droppers = [];
+  if (hex && key) update(sanitize({ [key]: hex }));
+  if (panel) {
+    panel.focus();
+    setTimeout(() => panel && prepareEyedropper(), 300); // ready for the next pick
+  }
 }
 
 // ---------- cursor tracking & click-through ----------
@@ -331,6 +435,10 @@ ipcMain.on('update-settings', (_e, patch) => update(sanitize(patch)));
 ipcMain.on('close-panel', () => panel && panel.close());
 ipcMain.on('install-update', () => updater.install());
 
+ipcMain.on('eyedropper-start', (_e, key) => startEyedropper(key));
+ipcMain.on('eyedropper-pick', (_e, hex) => endEyedropper(hex));
+ipcMain.on('eyedropper-cancel', () => endEyedropper(null));
+
 ipcMain.on('hit-rects', (_e, rects) => {
   hitRects = Array.isArray(rects) ? rects : [];
   stillTicks = 0;
@@ -381,6 +489,9 @@ app.whenReady().then(() => {
   powerMonitor.on('lock-screen', pause);
   powerMonitor.on('resume', resume);
   powerMonitor.on('unlock-screen', resume);
+
+  // pre-created eyedropper overlays are sized per display; rebuild on changes
+  for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(ev, discardPrepared);
 
   screen.on('display-removed', () => {
     if (!win) return;

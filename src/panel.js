@@ -41,19 +41,23 @@ function colorField(container, key, presets) {
 
   picker.addEventListener('input', () => api.update({ [key]: picker.value.toUpperCase() }));
 
-  if ('EyeDropper' in window) {
-    dropper.addEventListener('click', async () => {
-      try {
-        const { sRGBHex } = await new window.EyeDropper().open();
-        const hex = normalizeHex(sRGBHex);
-        if (hex) api.update({ [key]: hex });
-      } catch {
-        // user pressed Esc
-      }
-    });
-  } else {
-    dropper.hidden = true;
-  }
+  // macOS: Chromium's EyeDropper uses the system color sampler, which works
+  // across the whole screen. Elsewhere it is limited to this window, so the
+  // main process opens a full-screen picker instead.
+  const nativeDropper = api.platform === 'darwin' && 'EyeDropper' in window;
+  dropper.addEventListener('click', async () => {
+    if (!nativeDropper) {
+      api.startEyedropper(key);
+      return;
+    }
+    try {
+      const { sRGBHex } = await new window.EyeDropper().open();
+      const hex = normalizeHex(sRGBHex);
+      if (hex) api.update({ [key]: hex });
+    } catch {
+      // user pressed Esc
+    }
+  });
 
   hexInput.addEventListener('input', () => {
     const hex = normalizeHex(hexInput.value);
