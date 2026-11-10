@@ -1,7 +1,7 @@
 {
   "name": "offwork-eyes",
   "productName": "OffWork Eyes",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "퇴근까지 남은 시간을 알려주는 눈알 데스크톱 위젯",
   "main": "src/main.js",
   "private": true,
