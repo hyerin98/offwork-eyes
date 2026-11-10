@@ -7,8 +7,6 @@ const BODY_PRESETS = [
 const PUPIL_PRESETS = [
   ['#1E1E1C', '검정'], ['#5B3A29', '갈색'], ['#00388C', '파랑'], ['#E2496B', '분홍'], ['#2E8B57', '초록'],
 ];
-const SHAPE_LABELS = { circle: '기본', sparkle: '반짝', heart: '하트', star: '별' };
-
 let settings = null;
 const refreshers = [];
 
@@ -80,32 +78,41 @@ function colorField(container, key, presets) {
   refreshers.push(refresh);
 }
 
-// ---------- pupil shapes ----------
+// ---------- expressions ----------
+// Each tile is a mini widget: the body color with that expression's eyes.
 
 function shapeButtons() {
   const wrap = $('pupilShape');
-  const buttons = PupilShapes.LIST.map((shape) => {
+  const buttons = Eyes.LIST.map((shape) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'shape-btn';
     b.setAttribute('role', 'radio');
     b.dataset.shape = shape;
-    const svg = PupilShapes.el('svg', { viewBox: '-26 -26 52 52', 'aria-hidden': 'true' });
-    svg.append(PupilShapes.el('circle', { r: 25, fill: '#F4F4F4', stroke: '#E4E3DC' }));
-    const g = PupilShapes.el('g', {});
+    const tile = document.createElement('span');
+    tile.className = 'tile';
+    const svg = Eyes.el('svg', { viewBox: '-14 -22 228 160', 'aria-hidden': 'true' });
+    const g = Eyes.el('g');
     svg.append(g);
+    tile.append(svg);
     const label = document.createElement('span');
-    label.textContent = SHAPE_LABELS[shape];
-    b.append(svg, label);
+    label.textContent = Eyes.label(shape);
+    b.append(tile, label);
     b.addEventListener('click', () => api.update({ pupilShape: shape }));
     wrap.append(b);
-    return { b, g, shape };
+    return { b, g, tile, shape };
   });
+  let lastKey = '';
   refreshers.push(() => {
-    for (const { b, g, shape } of buttons) {
+    const key = `${settings.pupilColor}|${settings.bodyColor}`;
+    for (const { b, g, tile, shape } of buttons) {
       b.setAttribute('aria-checked', String(settings.pupilShape === shape));
-      g.replaceChildren(...PupilShapes.build(shape, 11, settings.pupilColor));
+      if (key !== lastKey) {
+        tile.style.background = settings.bodyColor || '#D9D8D2';
+        Eyes.render(g, shape, { pupilColor: settings.pupilColor });
+      }
     }
+    lastKey = key;
   });
 }
 

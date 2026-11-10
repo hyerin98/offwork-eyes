@@ -14,9 +14,11 @@ if (!app.requestSingleInstanceLock()) {
 const isMac = process.platform === 'darwin';
 const BASE = { w: 240, h: 210 };
 const SIZES = { small: 0.75, medium: 1, large: 1.3 };
-const SHAPES = ['circle', 'sparkle', 'heart', 'star'];
+// Keep in sync with EXPRESSIONS in shapes.js
+const SHAPES = ['circle', 'sleepy', 'angry', 'meh', 'side', 'surprised', 'crush', 'blank', 'sparkle', 'payday', 'meeting', 'overtime'];
+const LEGACY_SHAPES = { star: 'sparkle', heart: 'payday' };
 const HEX = /^#[0-9a-f]{6}$/i;
-const PANEL = { w: 320, h: 665 };
+const PANEL = { w: 320, h: 820 };
 const PRELOAD = path.join(__dirname, 'preload.js');
 
 let settings;
@@ -149,11 +151,12 @@ function openPanel() {
   let x = wb.x - PANEL.w - 8;
   if (x < wa.x) x = wb.x + wb.width + 8;
   x = clamp(x, wa.x, wa.x + wa.width - PANEL.w);
-  const y = clamp(wb.y + wb.height - PANEL.h, wa.y, wa.y + wa.height - PANEL.h);
+  const h = Math.min(PANEL.h, wa.height);
+  const y = clamp(wb.y + wb.height - h, wa.y, wa.y + wa.height - h);
 
   panel = new BrowserWindow({
     width: PANEL.w,
-    height: Math.min(PANEL.h, wa.height),
+    height: h,
     x,
     y,
     frame: false,
@@ -344,6 +347,8 @@ ipcMain.on('open-menu', () => {
 
 app.whenReady().then(() => {
   settings = store.load();
+  const shape = LEGACY_SHAPES[settings.pupilShape] || settings.pupilShape;
+  settings.pupilShape = SHAPES.includes(shape) ? shape : 'circle';
   if (isMac && app.dock) app.dock.hide();
   createWindow();
   createTray();

@@ -205,21 +205,26 @@ input:focus-visible, button:focus-visible {
 .shapes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 
 .shape-btn {
-  height: 50px;
   border: 1.5px solid var(--line);
   border-radius: 10px;
   background: #fff;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
+  align-items: stretch;
+  padding: 3px 3px 4px;
+  gap: 3px;
   font-size: 11px;
   color: var(--muted);
 }
 
-.shape-btn svg { width: 26px; height: 26px; }
+.shape-btn .tile {
+  display: block;
+  height: 34px;
+  border-radius: 6px;
+}
+
+.shape-btn svg { width: 100%; height: 100%; display: block; }
 .shape-btn[aria-checked="true"] { border-color: var(--ink); color: var(--ink); font-weight: 700; }
 
 /* ---------- slider ---------- */

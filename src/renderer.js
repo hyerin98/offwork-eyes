@@ -4,13 +4,11 @@ const bubble = $('bubble');
 const text = $('text');
 const buddy = $('buddy');
 const eyes = $('eyes');
-const pupils = { l: $('pl'), r: $('pr') };
+const eyeGroup = $('lids');
 
 const VIEW_W = 200;          // svg viewBox width
-const EYE_X = { l: 59, r: 141 };
+const EYE_X = [59, 141];
 const EYE_Y = 60;
-const EYE_R = 50;
-const BASE_PUPIL_R = 18.5;
 const REACH = 120;           // svg units: distance where pupils hit the edge
 
 let settings = null;
@@ -20,7 +18,7 @@ let dragging = false;
 let happy = false;
 let lastMsg = '';
 let lastLook = '';
-let maxOffset = 27;
+let rig = { looks: [], maxOff: [] }; // pupil groups + per-eye travel limits
 let minuteTimer = null;
 
 // ---------- layout ----------
@@ -28,11 +26,7 @@ let minuteTimer = null;
 function measure() {
   const r = eyes.getBoundingClientRect();
   const k = r.width / VIEW_W;
-  geo = {
-    k,
-    l: { x: r.left + EYE_X.l * k, y: r.top + EYE_Y * k },
-    r: { x: r.left + EYE_X.r * k, y: r.top + EYE_Y * k },
-  };
+  geo = { k, centers: EYE_X.map((x) => ({ x: r.left + x * k, y: r.top + EYE_Y * k })) };
   if (cursor) look(cursor[0], cursor[1], true);
 }
 
@@ -50,28 +44,31 @@ function relayout() {
 
 // ---------- eyes ----------
 
-const prev = { l: [0, 0], r: [0, 0] };
+const prev = [[0, 0], [0, 0]];
 
-function lookOne(key, x, y, force) {
-  const c = geo[key];
+function lookOne(i, x, y, force) {
+  const el = rig.looks[i];
+  if (!el) return;
+  const c = geo.centers[i];
+  const lim = rig.maxOff[i];
   const dx = x - c.x;
   const dy = y - c.y;
   const d = Math.hypot(dx, dy) || 1;
   const t = Math.min(1, d / (REACH * geo.k));
-  const m = maxOffset * (1 - (1 - t) * (1 - t)); // ease-out
-  const tx = (dx / d) * m;
-  const ty = (dy / d) * m;
-  const p = prev[key];
+  const e = 1 - (1 - t) * (1 - t); // ease-out
+  const tx = (dx / d) * e * lim.x;
+  const ty = (dy / d) * e * (dy < 0 ? lim.up : lim.y);
+  const p = prev[i];
   if (!force && Math.abs(tx - p[0]) < 0.4 && Math.abs(ty - p[1]) < 0.4) return; // skip sub-pixel repaints
   p[0] = tx;
   p[1] = ty;
-  pupils[key].style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px)`;
+  el.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px)`;
 }
 
 function look(x, y, force = false) {
   if (!geo) return;
-  lookOne('l', x, y, force);
-  lookOne('r', x, y, force);
+  lookOne(0, x, y, force);
+  lookOne(1, x, y, force);
 }
 
 api.onCursor((x, y) => {
@@ -83,13 +80,10 @@ function renderPupils(s) {
   const key = `${s.pupilShape}|${s.pupilColor}|${s.pupilSize}`;
   if (key === lastLook) return;
   lastLook = key;
-  const r = BASE_PUPIL_R * s.pupilSize;
-  const extent = PupilShapes.EXTENT[s.pupilShape] || 1;
-  maxOffset = Math.max(3, EYE_R - r * extent - 3);
-  for (const g of eyes.querySelectorAll('.shape')) {
-    g.replaceChildren(...PupilShapes.build(s.pupilShape, r, s.pupilColor));
-  }
-  eyes.style.setProperty('--pupil', s.pupilColor);
+  rig = Eyes.render(eyeGroup, s.pupilShape, { pupilColor: s.pupilColor, pupilSize: s.pupilSize });
+  prev[0] = [0, 0];
+  prev[1] = [0, 0];
+  if (cursor) look(cursor[0], cursor[1], true);
 }
 
 function scheduleBlink() {

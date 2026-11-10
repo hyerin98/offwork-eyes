@@ -107,19 +107,14 @@ html, body {
   overflow: visible;
 }
 
-.white { fill: var(--white); }
 .look { transition: transform 90ms ease-out; }
 
-.happy {
-  display: none;
-  fill: none;
-  stroke: var(--pupil, var(--ink));
-  stroke-width: 9;
-  stroke-linecap: round;
-}
-
-#eyes.is-happy .look { display: none; }
+.happy { display: none; }
 #eyes.is-happy .happy { display: inline; }
+#eyes.is-happy .look,
+#eyes.is-happy .lid-line,
+#eyes.is-happy .deco { display: none; }
+#eyes.is-happy .masked { mask: none; }
 
 #lids {
   transform-box: fill-box;
