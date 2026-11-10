@@ -7,6 +7,10 @@
 //                        install-mac.sh (curl downloads aren't quarantined).
 //   Windows (portable)   check only; the button opens the download page.
 //
+// Schedule: 15s after launch, then hourly. Checks pause while the screen is
+// locked or the PC sleeps, and run again right after unlock/resume (unless one
+// ran in the last few minutes), so nothing is sent while nobody is using it.
+//
 // Set OWE_FAKE_UPDATE=1.9.9 to preview the UI in development.
 const { app, net, shell } = require('electron');
 const { spawn } = require('child_process');
@@ -15,12 +19,16 @@ const REPO = 'hyerin98/offwork-eyes';
 const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;
 const INSTALL_CMD = `curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install-mac.sh | bash`;
 const FIRST_CHECK_MS = 15 * 1000;
-const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
+const CHECK_EVERY_MS = 60 * 60 * 1000;
+const RESUME_DELAY_MS = 10 * 1000;   // give the network a moment after unlock/wake
+const MIN_GAP_MS = 10 * 60 * 1000;   // skip the resume check if one ran this recently
 
 // status: idle | available | downloading | ready | installing
 let state = { status: 'idle', version: null, mode: null };
 let onChange = () => {};
 let autoUpdater = null;
+let timer = null;
+let lastCheck = 0;
 
 function set(patch) {
   state = { ...state, ...patch };
@@ -54,6 +62,7 @@ async function latestVersion() {
 
 async function check() {
   if (state.status !== 'idle') return;
+  lastCheck = Date.now();
   if (process.env.OWE_FAKE_UPDATE) {
     set({ status: state.mode === 'nsis' ? 'ready' : 'available', version: process.env.OWE_FAKE_UPDATE });
     return;
@@ -102,8 +111,29 @@ function start(cb) {
     });
   }
 
-  setTimeout(check, FIRST_CHECK_MS);
-  setInterval(check, CHECK_EVERY_MS);
+  schedule(FIRST_CHECK_MS);
 }
 
-module.exports = { start, install, getState: () => state };
+function schedule(delay) {
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    await check();
+    schedule(CHECK_EVERY_MS);
+  }, delay);
+}
+
+// screen locked / PC going to sleep
+function pause() {
+  if (!state.mode) return;
+  clearTimeout(timer);
+  timer = null;
+}
+
+// screen unlocked / PC woke up
+function resume() {
+  if (!state.mode) return;
+  const sinceLast = Date.now() - lastCheck;
+  schedule(sinceLast < MIN_GAP_MS ? CHECK_EVERY_MS - sinceLast : RESUME_DELAY_MS);
+}
+
+module.exports = { start, install, pause, resume, getState: () => state };

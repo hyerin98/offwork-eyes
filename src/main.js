@@ -480,10 +480,14 @@ app.whenReady().then(() => {
   createTray();
   updater.start(() => pushSettings());
 
-  const pause = () => stopPolling();
+  const pause = () => {
+    stopPolling();
+    updater.pause();
+  };
   const resume = () => {
     if (win && win.isVisible()) startPolling();
     if (win) win.webContents.send('refresh');
+    updater.resume();
   };
   powerMonitor.on('suspend', pause);
   powerMonitor.on('lock-screen', pause);
