@@ -131,8 +131,13 @@ function update(patch) {
   if ('size' in patch) applySize();
   if ('openAtLogin' in patch) {
     // The portable .exe runs from a temp copy; register the real file instead.
+    // In development, electron.exe needs the app folder as an argument or it
+    // would open Electron's default window at login.
     const exe = process.env.PORTABLE_EXECUTABLE_FILE;
-    app.setLoginItemSettings({ openAtLogin: patch.openAtLogin, ...(exe ? { path: exe } : {}) });
+    const opts = { openAtLogin: patch.openAtLogin };
+    if (exe) opts.path = exe;
+    else if (!app.isPackaged) opts.args = [app.getAppPath()];
+    app.setLoginItemSettings(opts);
   }
   pushSettings();
 }
