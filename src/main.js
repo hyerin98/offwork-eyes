@@ -90,6 +90,27 @@ function applyTopmost() {
     if (isMac) w.setVisibleOnAllWorkspaces(on, { visibleOnFullScreen: true, skipTransformProcessType: true });
   }
   if (on && win) win.moveTop();
+  keepOnTop();
+}
+
+// Windows sometimes pushes an always-on-top window behind other windows
+// (after an app relaunch, other topmost windows of ours closing, unlock, ...).
+// For users who turned "항상 위에 표시" on, re-assert it every 30s and on
+// those events. This is a local window call; nothing goes over the network.
+const KEEP_TOP_MS = 30 * 1000;
+let topTimer = null;
+
+function keepOnTop() {
+  clearInterval(topTimer);
+  topTimer = null;
+  if (settings.alwaysOnTop) topTimer = setInterval(reassertTop, KEEP_TOP_MS);
+}
+
+function reassertTop() {
+  // skip while the eyedropper overlays cover the screen
+  if (!win || !settings.alwaysOnTop || !win.isVisible() || droppers.length) return;
+  if (!win.isAlwaysOnTop()) win.setAlwaysOnTop(true, 'screen-saver');
+  win.moveTop();
 }
 
 function applySize() {
@@ -187,6 +208,7 @@ function openPanel() {
   panel.on('closed', () => {
     panel = null;
     discardPrepared();
+    reassertTop();
     if (settings.firstRun) {
       settings.firstRun = false;
       store.save();
@@ -295,6 +317,7 @@ function endEyedropper(hex) {
   for (const w of droppers) if (!w.isDestroyed()) w.destroy();
   droppers = [];
   if (hex && key) update(sanitize({ [key]: hex }));
+  reassertTop(); // closing our own topmost overlays can push the widget back
   if (panel) {
     panel.focus();
     setTimeout(() => panel && prepareEyedropper(), 300); // ready for the next pick
@@ -484,11 +507,14 @@ app.whenReady().then(() => {
   const pause = () => {
     stopPolling();
     updater.pause();
+    clearInterval(topTimer);
   };
   const resume = () => {
     if (win && win.isVisible()) startPolling();
     if (win) win.webContents.send('refresh');
     updater.resume();
+    keepOnTop();
+    setTimeout(reassertTop, 1000);
   };
   powerMonitor.on('suspend', pause);
   powerMonitor.on('lock-screen', pause);
@@ -496,7 +522,12 @@ app.whenReady().then(() => {
   powerMonitor.on('unlock-screen', resume);
 
   // pre-created eyedropper overlays are sized per display; rebuild on changes
-  for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(ev, discardPrepared);
+  for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) {
+    screen.on(ev, () => {
+      discardPrepared();
+      setTimeout(reassertTop, 1000);
+    });
+  }
 
   screen.on('display-removed', () => {
     if (!win) return;
