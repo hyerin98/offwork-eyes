@@ -21,7 +21,8 @@ Electron 앱이며 Windows와 macOS에 배포합니다. 사용자는 회사 동�
 | `src/main.js` | 메인 프로세스: 투명 위젯 창, 커서 추적(적응형 폴링), 클릭 통과, 드래그/클릭 구분, 설정 패널 창, 트레이 메뉴, 스포이드 오버레이, 설정 검증(`sanitize`) |
 | `src/renderer.js`, `index.html`, `style.css` | 위젯: 픽셀 말풍선(갈무리 글꼴, `src/assets/fonts`) 카운트다운(분이 바뀔 때만 갱신), 눈동자 추적, 깜빡임, 퇴근 시 웃는 눈. 말풍선 스타일 설정 `bubbleStyle`: `classic`(기본값, 픽셀 말풍선) / `battery`(같은 말풍선 + 픽셀 번개 + 10칸 퇴근 배터리, 1칸=1시간, 마지막 1시간은 10번째 칸이 깜빡임). 위젯 창 너비 264px는 `main.js`의 `BASE`와 맞춰야 합니다 |
 | `src/shapes.js` | 표정 12종(`window.Eyes`). 눈꺼풀은 SVG mask, 눈꺼풀 선은 각 눈 흰자로 clip. 키 목록은 `main.js`의 `SHAPES`와 맞춰야 합니다 |
-| `src/panel.*` | 설정 패널: 퇴근 시간, 몸/눈동자 색상(5색 팔레트 + 색상 선택기 + 스포이드 + HEX), 표정, 크기, 항상 위, 자동 실행, 업데이트 안내, 현재 버전 |
+| `src/panel.*` | 설정 패널: 퇴근 시간, 몸/눈동자 색상(5색 팔레트 + 색상 선택기 + 스포이드 + HEX), 표정, 크기, 항상 위, 자동 실행, 업데이트 안내, 현재 버전, "개발자에게 한마디" 피드백 화면(작성 → 전송 중 → 완료/실패, 초안은 localStorage에 보관). 색은 회사 키컬러(`:root` 토큰), 제목·버튼·말풍선은 갈무리 글꼴 |
+| `src/feedback.js` | 피드백을 구글 폼(`formResponse`)으로 전송. 질문 entry id는 폼과 맞춰야 합니다. 응답은 개발자의 구글 시트에 쌓이고 메일 알림이 옵니다. `OWE_FAKE_FEEDBACK=ok`/`fail`로 전송 없이 화면을 확인할 수 있습니다 |
 | `src/eyedropper.*` | Windows용 전체 화면 스포이드. 패널이 열려 있는 동안 창을 미리 만들어 두고, 투명하게 먼저 띄운 뒤 화면을 캡처합니다 |
 | `src/updater.js` | 업데이트: Windows 설치형은 electron-updater, Mac은 GitHub API로 확인 후 `install-mac.sh` 실행, Portable은 다운로드 페이지 열기. 시작 15초 후·1시간마다 확인, 화면 잠금/절전 중에는 멈춤 |
 | `src/store.js` | `%APPDATA%/OffWork Eyes/settings.json` 저장. 예전 키(`color`) 변환 포함 |
