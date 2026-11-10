@@ -23,18 +23,20 @@
 
 ## 설치 안내 (배포받은 사람용)
 
+[최신 Release](https://github.com/hyerin98/offwork-eyes/releases/latest)의 **Assets**에서 파일을 받습니다.
+
 ### Windows
 
 두 가지 파일 중 하나를 받으면 됩니다.
 
-- `OffWork Eyes-Setup-1.0.0.exe`: 더블클릭하면 바로 설치되고 실행됩니다. 시작 메뉴에 등록되고, 제어판에서 제거할 수 있습니다.
-- `OffWork Eyes-Portable-1.0.0.exe`: 설치 없이 더블클릭만 하면 실행됩니다.
+- `OffWork.Eyes-Setup-<버전>.exe`: 더블클릭하면 바로 설치되고 실행됩니다. 시작 메뉴에 등록되고, 제어판에서 제거할 수 있습니다.
+- `OffWork.Eyes-Portable-<버전>.exe`: 설치 없이 더블클릭만 하면 실행됩니다.
 
 처음 실행할 때 "Windows의 PC 보호" 화면이 나오면 **추가 정보 → 실행**을 누릅니다.
 
 ### macOS
 
-1. `OffWork Eyes-1.0.0-mac.dmg`를 열고, 앱을 **응용 프로그램(Applications)** 폴더로 드래그합니다.
+1. `OffWork.Eyes-<버전>-mac.dmg`를 열고, 앱을 **응용 프로그램(Applications)** 폴더로 드래그합니다.
    (zip 파일을 받았다면 더블클릭해서 압축을 풀고 같은 방법으로 옮깁니다.)
 2. 앱을 실행합니다. "확인할 수 없음" 경고가 나오면 **완료**를 누릅니다.
 3. **시스템 설정 → 개인정보 보호 및 보안**으로 이동해서, 아래쪽에 있는 **그래도 열기**를 누릅니다.
@@ -56,11 +58,32 @@ npm run dist:win   # Windows 설치 파일 + 단일 실행 파일 → dist/
 npm run dist:mac   # macOS dmg + zip (Mac에서만 가능)
 ```
 
-### Mac 빌드
+### 새 버전 배포하기
 
-macOS용 파일은 Mac에서만 만들 수 있습니다. Mac이 없다면 이 프로젝트를 GitHub 저장소에 올린 뒤
-**Actions → build → Run workflow**를 실행하면 됩니다. Windows와 Mac 파일이 모두 만들어지고,
-실행 결과 페이지의 Artifacts에서 내려받을 수 있습니다. `v1.0.1`처럼 태그를 푸시해도 자동으로 빌드됩니다.
+태그를 푸시하면 GitHub Actions가 Windows와 Mac 파일을 빌드하고, Release 페이지에 설치 안내와 함께 자동으로 올립니다.
+
+```bash
+npm version 1.0.2 --no-git-tag-version
+```
+
+```bash
+git commit -am "chore: 1.0.2 버전으로 변경"
+```
+
+```bash
+git tag v1.0.2
+```
+
+```bash
+git push origin main v1.0.2
+```
+
+- 태그 이름은 `package.json`의 `version`과 같아야 합니다. 다르면 빌드가 실패합니다.
+- 사람들에게는 `https://github.com/hyerin98/offwork-eyes/releases/latest` 링크만 공유하면 됩니다.
+- Release 본문에 들어가는 설치 안내는 `.github/release-notes.md`에서 수정합니다.
+- 배포하지 않고 빌드만 확인하려면 **Actions → build → Run workflow**를 실행합니다. 결과물은 Artifacts에서 내려받을 수 있습니다.
+
+macOS용 파일은 Mac에서만 만들 수 있으므로, Mac 빌드는 GitHub Actions에서 진행합니다.
 
 ### 경로 길이 문제 (Windows)
 
