@@ -38,6 +38,16 @@ jobs:
       - run: npm run dist -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+      # Apple Silicon refuses to run unsigned code, so make sure the ad-hoc
+      # signature is present and valid before publishing.
+      - name: Verify macOS ad-hoc signature
+        if: runner.os == 'macOS'
+        run: |
+          app=$(find dist -maxdepth 2 -name "*.app" -type d | head -n 1)
+          echo "checking $app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app" 2>&1 | grep -E "Identifier|Signature|flags"
+          lipo -archs "$app/Contents/MacOS/OffWork Eyes"
       - uses: actions/upload-artifact@v4
         with:
           name: OffWorkEyes-${{ runner.os }}
