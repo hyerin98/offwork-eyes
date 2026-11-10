@@ -1,12 +1,10 @@
 const $ = (id) => document.getElementById(id);
 
-const BODY_PRESETS = [
-  ['#F96420', '주황'], ['#00388C', '파랑'], ['#07463C', '초록'], ['#FFC6D9', '분홍'],
-  ['#FFD43B', '노랑'], ['#8C6BE8', '보라'], [null, '눈만'],
+const PALETTE = [
+  ['#CE89C3', '핑크'], ['#DFEF87', '라임'], ['#B1ACAA', '그레이'], ['#6E6E73', '차콜'], ['#5375A0', '블루'],
 ];
-const PUPIL_PRESETS = [
-  ['#1E1E1C', '검정'], ['#5B3A29', '갈색'], ['#00388C', '파랑'], ['#E2496B', '분홍'], ['#2E8B57', '초록'],
-];
+const BODY_PRESETS = [...PALETTE, [null, '눈만']];
+const PUPIL_PRESETS = PALETTE;
 let settings = null;
 const refreshers = [];
 
