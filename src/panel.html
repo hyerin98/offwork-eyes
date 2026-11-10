@@ -73,15 +73,24 @@
   <template id="color-tpl">
     <div class="swatches"></div>
     <div class="custom">
-      <label class="picker" title="색상 선택">
-        <input type="color">
-      </label>
+      <button type="button" class="picker" title="색상 선택" aria-label="색상 선택" aria-expanded="false"></button>
       <button type="button" class="icon-btn dropper" title="스포이드: 화면에서 색 가져오기" aria-label="스포이드">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M14.5 4.5l5 5M17 2.5a2.1 2.1 0 013 3l-2.5 2.5-3-3zM14.5 5.5l-9.3 9.3a2 2 0 00-.5.9L4 19.5l3.8-.7a2 2 0 00.9-.5l9.3-9.3"/>
         </svg>
       </button>
       <span class="hex"><span>#</span><input type="text" maxlength="7" spellcheck="false" aria-label="HEX 색상 값"></span>
+    </div>
+    <!-- our own color picker: the native one has its own eyedropper and, on
+         macOS, opens behind this always-on-top panel -->
+    <div class="cp" hidden>
+      <div class="cp-sv" aria-label="채도와 밝기"><i class="cp-thumb"></i></div>
+      <input class="cp-hue" type="range" min="0" max="360" step="1" aria-label="색조">
+      <div class="cp-rgb">
+        <label><input type="number" min="0" max="255" data-c="0"><span>R</span></label>
+        <label><input type="number" min="0" max="255" data-c="1"><span>G</span></label>
+        <label><input type="number" min="0" max="255" data-c="2"><span>B</span></label>
+      </div>
     </div>
   </template>
 

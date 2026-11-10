@@ -14,12 +14,123 @@ function normalizeHex(v) {
   return /^[0-9a-f]{6}$/i.test(h) ? `#${h.toUpperCase()}` : null;
 }
 
-// ---------- color field: presets + native picker + eyedropper + hex ----------
+// ---------- color math ----------
+
+const hex2 = (n) => Math.round(n).toString(16).padStart(2, '0');
+const rgbToHex = ([r, g, b]) => `#${hex2(r)}${hex2(g)}${hex2(b)}`.toUpperCase();
+const hexToRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+
+function hsvToRgb(h, s, v) {
+  const f = (n) => {
+    const k = (n + h / 60) % 6;
+    return v - v * s * Math.max(0, Math.min(k, 4 - k, 1));
+  };
+  return [f(5) * 255, f(3) * 255, f(1) * 255];
+}
+
+function rgbToHsv([r, g, b]) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  let h = 0;
+  if (d) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  return [h, max ? d / max : 0, max];
+}
+
+// ---------- in-panel color picker ----------
+// Replaces <input type=color>: the native picker has its own eyedropper
+// (duplicating ours) and on macOS opens behind this always-on-top panel.
+
+const openPickers = new Set();
+
+function colorPicker(root, getHex, onPick) {
+  const sv = root.querySelector('.cp-sv');
+  const thumb = root.querySelector('.cp-thumb');
+  const hue = root.querySelector('.cp-hue');
+  const rgbInputs = [...root.querySelectorAll('.cp-rgb input')];
+  let hsv = [0, 0, 0];
+  let frame = null;
+
+  function paint() {
+    const [h, s, v] = hsv;
+    sv.style.background = `linear-gradient(to top, #000, rgba(0,0,0,0)), linear-gradient(to right, #fff, hsl(${h}, 100%, 50%))`;
+    thumb.style.left = `${s * 100}%`;
+    thumb.style.top = `${(1 - v) * 100}%`;
+    thumb.style.background = rgbToHex(hsvToRgb(h, s, v));
+    hue.value = Math.round(h);
+    const rgb = hsvToRgb(h, s, v).map(Math.round);
+    rgbInputs.forEach((inp, i) => { if (document.activeElement !== inp) inp.value = rgb[i]; });
+  }
+
+  // throttle updates to ~60/s while dragging (a timer, so it also runs when
+  // the window is in the background, unlike requestAnimationFrame)
+  function emit() {
+    if (frame) return;
+    frame = setTimeout(() => {
+      frame = null;
+      onPick(rgbToHex(hsvToRgb(...hsv)));
+    }, 16);
+  }
+
+  function fromPointer(e) {
+    const r = sv.getBoundingClientRect();
+    const s = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const v = 1 - Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+    hsv = [hsv[0], s, v];
+    paint();
+    emit();
+  }
+
+  sv.addEventListener('pointerdown', (e) => {
+    sv.setPointerCapture(e.pointerId);
+    fromPointer(e);
+  });
+  sv.addEventListener('pointermove', (e) => {
+    if ((e.buttons & 1) || sv.hasPointerCapture(e.pointerId)) fromPointer(e);
+  });
+
+  hue.addEventListener('input', () => {
+    hsv = [Number(hue.value), hsv[1], hsv[2]];
+    paint();
+    emit();
+  });
+
+  rgbInputs.forEach((inp) => inp.addEventListener('input', () => {
+    const rgb = rgbInputs.map((x) => Math.min(255, Math.max(0, Number(x.value) || 0)));
+    hsv = rgbToHsv(rgb);
+    paint();
+    emit();
+  }));
+
+  return {
+    sync() {
+      const hex = getHex();
+      if (!hex) return;
+      const current = rgbToHex(hsvToRgb(...hsv));
+      if (current !== hex) {
+        const next = rgbToHsv(hexToRgb(hex));
+        // keep the hue when the color is grey/black (hue is undefined there)
+        if (next[1] === 0 || next[2] === 0) next[0] = hsv[0];
+        hsv = next;
+      }
+      paint();
+    },
+  };
+}
+
+// ---------- color field: presets + picker + eyedropper + hex ----------
 
 function colorField(container, key, presets) {
   container.append($('color-tpl').content.cloneNode(true));
   const swatches = container.querySelector('.swatches');
-  const picker = container.querySelector('input[type=color]');
+  const pickerBtn = container.querySelector('.picker');
+  const cpRoot = container.querySelector('.cp');
   const dropper = container.querySelector('.dropper');
   const hexWrap = container.querySelector('.hex');
   const hexInput = hexWrap.querySelector('input');
@@ -37,7 +148,20 @@ function colorField(container, key, presets) {
     return [value, b];
   });
 
-  picker.addEventListener('input', () => api.update({ [key]: picker.value.toUpperCase() }));
+  const cp = colorPicker(cpRoot, () => settings[key] || '#FFFFFF', (hex) => api.update({ [key]: hex }));
+  const setOpen = (open) => {
+    cpRoot.hidden = !open;
+    pickerBtn.setAttribute('aria-expanded', String(open));
+    if (open) {
+      for (const other of openPickers) other(false); // one picker at a time
+      openPickers.add(setOpen);
+      cp.sync();
+      cpRoot.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } else {
+      openPickers.delete(setOpen);
+    }
+  };
+  pickerBtn.addEventListener('click', () => setOpen(cpRoot.hidden));
 
   // macOS: Chromium's EyeDropper uses the system color sampler, which works
   // across the whole screen. Elsewhere it is limited to this window, so the
@@ -70,7 +194,8 @@ function colorField(container, key, presets) {
   function refresh() {
     const v = settings[key];
     for (const [value, b] of buttons) b.setAttribute('aria-checked', String(value === v));
-    if (v) picker.value = v.toLowerCase();
+    pickerBtn.style.background = v || '#FFFFFF';
+    if (!cpRoot.hidden) cp.sync();
     if (document.activeElement !== hexInput) {
       hexInput.value = v ? v.slice(1) : '';
       hexInput.placeholder = v ? '' : '눈만 표시 중';
@@ -213,7 +338,12 @@ refreshers.push(() => {
 
 $('close').addEventListener('click', () => api.closePanel());
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && document.activeElement?.tagName !== 'INPUT') api.closePanel();
+  if (e.key !== 'Escape') return;
+  if (openPickers.size) {
+    for (const close of [...openPickers]) close(false); // Esc closes the color picker first
+    return;
+  }
+  if (document.activeElement?.tagName !== 'INPUT') api.closePanel();
 });
 
 colorField($('bodyColor'), 'bodyColor', BODY_PRESETS);
