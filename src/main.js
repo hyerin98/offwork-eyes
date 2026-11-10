@@ -2,6 +2,7 @@ const { app, BrowserWindow, Tray, Menu, screen, ipcMain, nativeImage, powerMonit
 const path = require('path');
 const store = require('./store');
 const updater = require('./updater');
+const feedback = require('./feedback');
 
 // A 240px widget doesn't need the GPU process; software compositing saves
 // RAM and avoids waking the GPU.
@@ -458,6 +459,7 @@ ipcMain.handle('get-settings', () => rendererSettings());
 ipcMain.on('update-settings', (_e, patch) => update(sanitize(patch)));
 ipcMain.on('close-panel', () => panel && panel.close());
 ipcMain.on('install-update', () => updater.install());
+ipcMain.handle('send-feedback', (_e, data) => feedback.send(data));
 
 ipcMain.on('eyedropper-start', (_e, key) => startEyedropper(key));
 ipcMain.on('eyedropper-pick', (_e, hex) => endEyedropper(hex));

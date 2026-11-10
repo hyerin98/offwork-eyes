@@ -334,6 +334,146 @@ refreshers.push(() => {
   $('version').textContent = `현재 버전 v${settings.appVersion}`;
 });
 
+// ---------- feedback ("개발자에게 한마디") ----------
+// form → sending → done | fail. The draft is kept in localStorage so closing
+// the panel or a failed send never loses what the user wrote.
+
+const DRAFT_KEY = 'feedbackDraft';
+const fb = {
+  type: '버그',
+  step: 'form',
+  fields: { title: $('fb-title'), body: $('fb-text'), name: $('fb-name') },
+};
+
+function remainText() {
+  const [h, m] = settings.offTime.split(':').map(Number);
+  const off = new Date();
+  off.setHours(h, m, 0, 0);
+  const diff = off - Date.now();
+  return diff > 0
+    ? `퇴근까지 ${fmt(Math.ceil(diff / 60000))} 남았어요.`
+    : '벌써 퇴근 시간이 지났어요. 얼른 퇴근하세요!';
+}
+
+function loadDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+    for (const k of Object.keys(fb.fields)) fb.fields[k].value = d[k] || '';
+    if (d.type) fb.type = d.type;
+  } catch { /* storage unavailable: start empty */ }
+}
+
+function saveDraft() {
+  const d = { type: fb.type };
+  for (const k of Object.keys(fb.fields)) d[k] = fb.fields[k].value;
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* ignore */ }
+}
+
+function clearDraft() {
+  for (const f of Object.values(fb.fields)) f.value = '';
+  fb.type = '버그';
+  try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+}
+
+// the little character mirrors the user's own widget: body color + expression
+function drawBuddy(mood) {
+  const svg = $('fb-eyes');
+  const shape = mood === 'fail' ? 'surprised' : settings.pupilShape;
+  Eyes.render(svg.firstElementChild, shape, { pupilColor: settings.pupilColor, pupilSize: settings.pupilSize });
+  svg.classList.toggle('is-happy', mood === 'done');
+  $('fb-body').style.background = settings.bodyColor || 'transparent';
+  $('fb-body').classList.toggle('no-body', !settings.bodyColor);
+}
+
+const SAY = {
+  form: ['저 혹시 고장났나요…?', ''],
+  sending: ['두근두근… 보내는 중', ''],
+  done: ['고마워요! 🎉', 'party'],
+  fail: ['어… 안 보내졌어요', 'err'],
+};
+
+function setStep(step) {
+  fb.step = step;
+  $('fb-form').hidden = step !== 'form' && step !== 'sending';
+  $('fb-done').hidden = step !== 'done';
+  $('fb-fail').hidden = step !== 'fail';
+  const [say, cls] = SAY[step];
+  $('fb-say').textContent = say;
+  $('fb-say').className = `pbubble ${cls}`.trim();
+  drawBuddy(step);
+  if (step === 'done') $('fb-remain').textContent = remainText();
+  const sending = step === 'sending';
+  $('fb-send').textContent = sending ? '보내는 중…' : '보내기';
+  for (const f of Object.values(fb.fields)) f.disabled = sending;
+  refreshFeedbackForm();
+}
+
+function refreshFeedbackForm() {
+  for (const b of $('fb-type').querySelectorAll('button')) {
+    b.setAttribute('role', 'radio');
+    b.setAttribute('aria-checked', String(b.dataset.v === fb.type));
+  }
+  const ready = fb.fields.title.value.trim() && fb.fields.body.value.trim();
+  $('fb-send').disabled = !ready || fb.step === 'sending';
+}
+
+function showView(which) {
+  const feedback = which === 'feedback';
+  $('settings-view').hidden = feedback;
+  $('fb-view').hidden = !feedback;
+  $('back').hidden = !feedback;
+  $('title').textContent = feedback ? '의견 보내기' : '설정';
+  if (feedback) {
+    setStep('form');
+    (fb.fields.title.value ? fb.fields.body : fb.fields.title).focus();
+  } else {
+    $('fb-open').focus();
+  }
+}
+
+async function sendFeedback() {
+  if (fb.step === 'sending') return;
+  setStep('sending');
+  const res = await api.sendFeedback({
+    type: fb.type,
+    title: fb.fields.title.value,
+    body: fb.fields.body.value,
+    name: fb.fields.name.value,
+  });
+  if (res && res.ok) {
+    clearDraft();
+    setStep('done');
+  } else if (res && res.reason === 'busy') {
+    setStep('form'); // a double click; the first send is still going or just went
+  } else {
+    setStep('fail');
+  }
+}
+
+for (const b of $('fb-type').querySelectorAll('button')) {
+  b.addEventListener('click', () => {
+    fb.type = b.dataset.v;
+    saveDraft();
+    refreshFeedbackForm();
+  });
+}
+for (const f of Object.values(fb.fields)) {
+  f.addEventListener('input', () => {
+    saveDraft();
+    refreshFeedbackForm();
+  });
+}
+$('fb-open').addEventListener('click', () => showView('feedback'));
+$('back').addEventListener('click', () => showView('settings'));
+$('fb-home').addEventListener('click', () => showView('settings'));
+$('fb-send').addEventListener('click', sendFeedback);
+$('fb-retry').addEventListener('click', sendFeedback);
+$('fb-edit').addEventListener('click', () => setStep('form'));
+loadDraft();
+refreshers.push(() => {
+  if (!$('fb-view').hidden) drawBuddy(fb.step);
+});
+
 // ---------- wiring ----------
 
 $('close').addEventListener('click', () => api.closePanel());
@@ -341,6 +481,10 @@ window.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (openPickers.size) {
     for (const close of [...openPickers]) close(false); // Esc closes the color picker first
+    return;
+  }
+  if (!$('fb-view').hidden) {
+    if (fb.step !== 'sending') showView('settings'); // Esc goes back; the draft stays
     return;
   }
   if (document.activeElement?.tagName !== 'INPUT') api.closePanel();

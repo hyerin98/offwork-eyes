@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('api', {
   // settings panel
   closePanel: () => ipcRenderer.send('close-panel'),
   installUpdate: () => ipcRenderer.send('install-update'),
+  sendFeedback: (data) => ipcRenderer.invoke('send-feedback', data),
   platform: process.platform,
   startEyedropper: (key) => ipcRenderer.send('eyedropper-start', key),
 

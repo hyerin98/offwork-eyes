@@ -8,13 +8,18 @@
 </head>
 <body>
   <header class="bar">
-    <h1>설정</h1>
+    <h1>
+      <button id="back" class="back" type="button" aria-label="설정으로 돌아가기" hidden>
+        <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M6 0h3v2H6zM4 2h3v2H4zM2 4h3v2H2zM4 6h3v2H4zM6 8h3v2H6z"/></svg>
+      </button>
+      <span id="title">설정</span>
+    </h1>
     <button id="close" class="icon-btn" type="button" aria-label="닫기">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
     </button>
   </header>
 
-  <main>
+  <main id="settings-view">
     <div id="update" class="update" hidden>
       <p id="update-text"></p>
       <button id="update-btn" type="button" hidden></button>
@@ -67,7 +72,58 @@
         <input id="openAtLogin" type="checkbox"><i></i>
       </label>
     </section>
+    <section class="fb-entry">
+      <h2>개발자에게 한마디</h2>
+      <p class="desc">불편한 거 참지 마세요.<br>참으면 병 돼요 🙃</p>
+      <button id="fb-open" class="primary" type="button">의견 보내기 💌</button>
+    </section>
     <p id="version" class="version"></p>
+  </main>
+
+  <!-- feedback: form → sending → done / failed. The draft survives closing the panel. -->
+  <main id="fb-view" class="fb" hidden>
+    <div class="buddy">
+      <div id="fb-say" class="pbubble">저 혹시 고장났나요…?</div>
+      <div id="fb-body" class="mini-body">
+        <svg id="fb-eyes" viewBox="-14 -22 228 160" aria-hidden="true"><g></g></svg>
+      </div>
+    </div>
+
+    <div id="fb-form" class="fb-step">
+      <section>
+        <h2 id="fb-type-label">어떤 이야기인가요?</h2>
+        <div id="fb-type" class="chips" role="radiogroup" aria-labelledby="fb-type-label">
+          <button type="button" data-v="버그">🐞 고장났어요</button>
+          <button type="button" data-v="아이디어">💡 이러면 좋겠어요</button>
+          <button type="button" data-v="칭찬">👏 칭찬할래요</button>
+          <button type="button" data-v="기타">💬 그냥 할 말 있어요</button>
+        </div>
+        <label class="flabel" for="fb-title">제목</label>
+        <input id="fb-title" class="field" type="text" maxlength="100" placeholder="한 줄로 요약하면?">
+        <label class="flabel" for="fb-text">내용</label>
+        <textarea id="fb-text" class="field area" maxlength="2000"
+          placeholder="언제, 어떻게 그랬는지 적어 주시면 더 빨리 고칠 수 있어요."></textarea>
+        <label class="flabel" for="fb-name">이름 <span class="opt">(안 적어도 돼요)</span></label>
+        <input id="fb-name" class="field" type="text" maxlength="40" placeholder="안 적으면 익명이에요. 비밀 보장 🤫">
+      </section>
+      <p class="meta">앱 버전과 OS만 함께 가요. 개인정보는 안 가요.</p>
+      <button id="fb-send" class="primary big" type="button" disabled>보내기</button>
+    </div>
+
+    <div id="fb-done" class="fb-step center" hidden>
+      <p class="big-t">잘 전달됐어요!</p>
+      <p class="big-s">야근 없이 반영해 볼게요 💪</p>
+      <div class="note"><b>오늘도 수고 많으셨어요.</b><br><span id="fb-remain"></span></div>
+      <button id="fb-home" class="primary big" type="button">설정으로 돌아가기</button>
+    </div>
+
+    <div id="fb-fail" class="fb-step center" hidden>
+      <p class="big-t">앗, 전송이 안 됐어요</p>
+      <p class="big-s">와이파이가 먼저 퇴근했나 봐요 📶</p>
+      <div class="note err"><b>적은 내용은 그대로 남아 있어요.</b><br>인터넷 연결을 확인하고 다시 눌러 주세요.</div>
+      <button id="fb-retry" class="primary big" type="button">다시 보내기</button>
+      <button id="fb-edit" class="ghost" type="button">내용 고치기</button>
+    </div>
   </main>
 
   <template id="color-tpl">
