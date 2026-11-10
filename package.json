@@ -1,0 +1,90 @@
+{
+  "name": "offwork-eyes",
+  "productName": "OffWork Eyes",
+  "version": "1.0.0",
+  "description": "퇴근까지 남은 시간을 알려주는 눈알 데스크톱 위젯",
+  "main": "src/main.js",
+  "private": true,
+  "author": "OffWork Eyes",
+  "scripts": {
+    "start": "electron .",
+    "icons": "node scripts/make-icons.js",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.offworkeyes.app",
+    "productName": "OffWork Eyes",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "electronLanguages": [
+      "ko",
+      "en-US"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "identity": "-",
+      "artifactName": "${productName}-${version}-mac.${ext}",
+      "category": "public.app-category.utilities",
+      "icon": "build/icon.png",
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-mac.${ext}"
+    }
+  },
+  "allowScripts": {
+    "electron@45.2.3": true
+  }
+}
