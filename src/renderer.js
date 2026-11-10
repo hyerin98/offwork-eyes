@@ -30,7 +30,7 @@ function measure() {
   if (cursor) look(cursor[0], cursor[1], true);
 }
 
-function rectOf(el, pad = 4) {
+function rectOf(el, pad = 8) { // covers the bubble's pixel outline and drop shadow
   const r = el.getBoundingClientRect();
   return { x: r.left - pad, y: r.top - pad, w: r.width + pad * 2, h: r.height + pad * 2 };
 }
@@ -123,6 +123,51 @@ function fmt(min) {
   return m ? `${h}시간 ${m}분` : `${h}시간`;
 }
 
+// ---------- off-work battery ----------
+// 10 cells, one per hour counted back from the off time: empty 10h before,
+// full at the off time. During the last hour the 10th cell blinks.
+
+const CELLS = 10;
+const HOUR = 3600000;
+const batteryStyle = () => settings && settings.bubbleStyle === 'battery';
+const cellsEl = document.querySelector('#battery .cells');
+let lastBattery = '';
+
+function cellColor(filled) {
+  // saturated so filled cells stand out against the white box and empty cells
+  if (filled >= 8) return '#3DB24B'; // green
+  if (filled >= 4) return '#F5A524'; // amber
+  return '#E5484D';                  // red
+}
+
+function renderBattery(diff) {
+  const filled = diff > 0 ? Math.max(0, Math.min(CELLS, CELLS - Math.ceil(diff / HOUR))) : CELLS;
+  const charging = diff > 0 && diff <= HOUR;
+  bubble.classList.toggle('charging', charging);
+  bubble.classList.toggle('charged', diff <= 0);
+  const key = `${filled}|${charging}`;
+  if (key === lastBattery) return;
+  lastBattery = key;
+  bubble.style.setProperty('--cell', cellColor(filled));
+  const cells = [];
+  for (let i = 0; i < CELLS; i++) {
+    const c = document.createElement('i');
+    if (i < filled) c.className = 'on';
+    else if (charging && i === filled) c.className = 'chg';
+    cells.push(c);
+  }
+  cellsEl.replaceChildren(...cells);
+}
+
+function flash() {
+  bubble.classList.remove('flash');
+  void bubble.offsetWidth;
+  bubble.classList.add('flash');
+}
+document.getElementById('battery').addEventListener('animationend', (e) => {
+  if (e.animationName === 'flash') bubble.classList.remove('flash');
+});
+
 function updateCountdown() {
   if (!settings) return;
   clearTimeout(minuteTimer);
@@ -138,7 +183,7 @@ function updateCountdown() {
   } else {
     const passed = Math.floor(-diff / 60000);
     if (passed < 30) {
-      msg = '퇴근 시간이에요!';
+      msg = batteryStyle() ? '충전 완료! 퇴근!' : '퇴근 시간이에요!';
       party = true;
     } else {
       msg = `퇴근 ${fmt(passed)} 지남`;
@@ -146,13 +191,17 @@ function updateCountdown() {
   }
 
   text.textContent = msg;
+  renderBattery(diff);
   bubble.classList.toggle('near', near);
   bubble.classList.toggle('party', party);
 
   if (party !== happy) {
     happy = party;
     eyes.classList.toggle('is-happy', happy);
-    if (happy) hop();
+    if (happy) {
+      hop();
+      if (batteryStyle()) flash();
+    }
   } else if (near && msg !== lastMsg && lastMsg) {
     hop();
   }
@@ -191,8 +240,9 @@ window.addEventListener('contextmenu', (e) => {
 // ---------- settings ----------
 
 function applySettings(s) {
-  const offChanged = !settings || settings.offTime !== s.offTime;
+  const offChanged = !settings || settings.offTime !== s.offTime || settings.bubbleStyle !== s.bubbleStyle;
   settings = s;
+  root.classList.toggle('style-battery', s.bubbleStyle === 'battery');
   root.style.setProperty('--s', s.scale);
   buddy.classList.toggle('no-body', !s.bodyColor);
   if (s.bodyColor) buddy.style.setProperty('--body', s.bodyColor);

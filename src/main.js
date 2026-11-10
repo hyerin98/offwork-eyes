@@ -13,7 +13,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 const isMac = process.platform === 'darwin';
-const BASE = { w: 240, h: 210 };
+const BASE = { w: 264, h: 210 }; // keep in sync with #root in style.css
 const SIZES = { small: 0.75, medium: 1, large: 1.3 };
 // Keep in sync with EXPRESSIONS in shapes.js
 const SHAPES = ['circle', 'sleepy', 'angry', 'meh', 'side', 'surprised', 'crush', 'blank', 'sparkle', 'payday', 'meeting', 'overtime'];
@@ -120,6 +120,7 @@ function sanitize(p) {
   if (SHAPES.includes(p.pupilShape)) out.pupilShape = p.pupilShape;
   if (typeof p.pupilSize === 'number' && Number.isFinite(p.pupilSize)) out.pupilSize = clamp(p.pupilSize, 0.6, 1.5);
   if (p.size in SIZES) out.size = p.size;
+  if (p.bubbleStyle === 'classic' || p.bubbleStyle === 'battery') out.bubbleStyle = p.bubbleStyle;
   for (const k of ['alwaysOnTop', 'openAtLogin']) if (typeof p[k] === 'boolean') out[k] = p[k];
   return out;
 }

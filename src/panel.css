@@ -278,6 +278,8 @@ input:focus-visible, button:focus-visible {
   padding: 3px;
 }
 
+.seg.two { grid-template-columns: repeat(2, 1fr); }
+
 .seg button {
   height: 28px;
   border: 0;

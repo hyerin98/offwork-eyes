@@ -161,6 +161,22 @@ refreshers.push(() => {
   }
 });
 
+const BUBBLE_HINTS = {
+  classic: '남은 시간을 말풍선으로 보여줘요.',
+  battery: '퇴근 10시간 전부터 1시간마다 배터리가 한 칸씩 차요. 다 차면 퇴근!',
+};
+for (const b of $('bubbleStyle').querySelectorAll('button')) {
+  b.setAttribute('role', 'radio');
+  b.addEventListener('click', () => api.update({ bubbleStyle: b.dataset.v }));
+}
+refreshers.push(() => {
+  const style = settings.bubbleStyle || 'classic';
+  for (const b of $('bubbleStyle').querySelectorAll('button')) {
+    b.setAttribute('aria-checked', String(b.dataset.v === style));
+  }
+  $('bubbleHint').textContent = BUBBLE_HINTS[style];
+});
+
 for (const key of ['alwaysOnTop', 'openAtLogin']) {
   $(key).addEventListener('change', (e) => api.update({ [key]: e.target.checked }));
   refreshers.push(() => { $(key).checked = settings[key]; });

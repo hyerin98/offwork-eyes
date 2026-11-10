@@ -1,7 +1,15 @@
+@font-face {
+  font-family: "Galmuri11";
+  src: url("assets/fonts/Galmuri11-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: block;
+}
+
 :root {
   --ink: #1e1e1c;
   --white: #f4f4f4;
   --body: #f96420;
+  --cell: #3db24b;
   --s: 1;
 }
 
@@ -20,7 +28,7 @@ html, body {
   position: absolute;
   left: 0;
   top: 0;
-  width: 240px;
+  width: 264px;
   height: 210px;
   transform: scale(var(--s));
   transform-origin: 0 0;
@@ -29,54 +37,119 @@ html, body {
   align-items: center;
 }
 
-/* ---------- speech bubble ---------- */
+/* ---------- speech bubble: classic (default) = pixel speech bubble ---------- */
+/* The outline is drawn with box-shadows only on the four sides, which leaves
+   the corners notched like a pixel-art bubble. */
 
 #bubble {
+  --line: var(--ink);
   position: relative;
-  margin-top: 8px;
-  height: 36px;
+  margin-top: 11px;
+  height: 30px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  padding: 0 14px;
+  gap: 8px;
+  padding: 0 12px;
   background: #fff;
   color: var(--ink);
-  border: 2.5px solid var(--ink);
-  border-radius: 18px;
-  font-size: 15px;
+  box-shadow:
+    0 -3px 0 0 var(--line),
+    0 3px 0 0 var(--line),
+    -3px 0 0 0 var(--line),
+    3px 0 0 0 var(--line),
+    0 7px 0 0 rgba(0, 0, 0, 0.18);
+  font-family: "Galmuri11", "Malgun Gothic", monospace;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: -0.2px;
   white-space: nowrap;
+  -webkit-font-smoothing: none;
   cursor: grab;
 }
 
+/* pixel tail: covers the bottom outline in its width, then draws its own */
 #bubble::after {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -7.5px;
-  width: 11px;
-  height: 11px;
+  top: 100%;
+  width: 9px;
+  height: 9px;
+  transform: translateX(-50%);
   background: inherit;
-  border-right: 2.5px solid var(--ink);
-  border-bottom: 2.5px solid var(--ink);
-  transform: translateX(-50%) rotate(45deg);
+  box-shadow: -3px 0 0 0 var(--line), 3px 0 0 0 var(--line), 0 3px 0 0 var(--line);
 }
 
-#bubble.near {
-  color: #e2490b;
-  border-color: #e2490b;
-}
-
-#bubble.near::after {
-  border-color: #e2490b;
-}
-
-#bubble.party {
-  background: #fff4c2;
-}
+#bubble.near { color: #e2490b; --line: #e2490b; }
+#bubble.party { background: #fff4c2; }
 
 #text { position: relative; z-index: 1; }
+
+#battery { display: none; }
+
+/* ---------- "off-work battery" style: same pixel bubble + bolt + battery ---------- */
+
+/* 10 cells, one per hour before the off time */
+.style-battery #battery {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* pixel lightning bolt: yellow with a dark outline, hidden once fully charged */
+#bolt {
+  display: block;
+  shape-rendering: crispEdges;
+}
+
+#bolt .fill { fill: #ffd400; }
+#bolt .edge {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.6;
+}
+
+#bubble.charged #bolt { display: none; }
+
+/* notched pixel outline like the bubble (side shadows only) */
+#battery .cells {
+  display: flex;
+  gap: 1px;
+  padding: 2px;
+  background: #fff;
+  box-shadow:
+    0 -2px 0 0 var(--line),
+    0 2px 0 0 var(--line),
+    -2px 0 0 0 var(--line),
+    2px 0 0 0 var(--line);
+}
+
+#battery .cells i {
+  width: 5px;
+  height: 10px;
+  background: #f1f0eb;
+}
+
+#battery .cells i.on { background: var(--cell); }
+
+/* last hour: the next cell charges (the only looping animation, 1h a day) */
+#battery .cells i.chg {
+  background: var(--cell);
+  animation: charge 1.2s steps(2) infinite;
+}
+
+#battery .cap {
+  width: 2px;
+  height: 6px;
+  margin-left: -2px; /* sits right on the outline */
+  background: var(--line);
+}
+
+@keyframes charge { 50% { opacity: 0.25; } }
+
+/* fully charged at off time: flash three times, then stop */
+#bubble.flash #battery { animation: flash 0.5s steps(2) 3; }
+@keyframes flash { 50% { filter: brightness(1.35) saturate(1.4); } }
 
 /* small dot telling the user a new version is waiting (click opens the panel) */
 #bubble.has-update::before {
@@ -91,6 +164,8 @@ html, body {
   border: 2px solid #fff;
   z-index: 2;
 }
+
+.style-battery #bubble.has-update::before { top: -9px; right: -9px; }
 
 /* ---------- character ---------- */
 

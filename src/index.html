@@ -8,7 +8,16 @@
 </head>
 <body>
   <div id="root">
-    <div id="bubble"><span id="text">&nbsp;</span></div>
+    <div id="bubble">
+      <span id="text">&nbsp;</span>
+      <span id="battery" aria-hidden="true">
+        <svg id="bolt" viewBox="-1 -1 7 10" width="10" height="16">
+          <path class="edge" d="M3 0h2v1H3zM2 1h2v1H2zM1 2h2v1H1zM0 3h5v1H0zM2 4h2v1H2zM1 5h2v1H1zM0 6h2v1H0zM0 7h1v1H0z"/>
+          <path class="fill" d="M3 0h2v1H3zM2 1h2v1H2zM1 2h2v1H1zM0 3h5v1H0zM2 4h2v1H2zM1 5h2v1H1zM0 6h2v1H0zM0 7h1v1H0z"/>
+        </svg>
+        <span class="cells"></span><span class="cap"></span>
+      </span>
+    </div>
     <div id="buddy">
       <svg id="eyes" viewBox="0 0 200 120" aria-hidden="true">
         <g id="lids"></g>

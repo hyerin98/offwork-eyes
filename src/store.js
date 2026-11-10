@@ -8,6 +8,7 @@ const DEFAULTS = {
   pupilColor: '#1E1E1C',
   pupilShape: 'circle',
   pupilSize: 1,
+  bubbleStyle: 'classic', // 'classic' | 'battery'
   size: 'medium',
   alwaysOnTop: true,
   openAtLogin: false,
