@@ -3,8 +3,11 @@
 //   Windows (installed)  electron-updater downloads in the background and
 //                        installs on quit or when the user clicks restart.
 //   macOS                Squirrel.Mac needs an Apple-signed app, so instead we
-//                        check the latest GitHub release and, on click, re-run
-//                        install-mac.sh (curl downloads aren't quarantined).
+//                        download the release zip for this CPU in the background
+//                        and unpack it. On click a small script waits for this
+//                        app to quit, swaps the bundle and reopens it, so the
+//                        update takes seconds. If the bundle can't be replaced
+//                        in place, install-mac.sh is used instead.
 //   Windows (portable)   check only; the button opens the download page.
 //
 // Schedule: 15s after launch, then hourly. Checks pause while the screen is
@@ -13,7 +16,11 @@
 //
 // Set OWE_FAKE_UPDATE=1.9.9 to preview the UI in development.
 const { app, net, shell } = require('electron');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const { Readable } = require('stream');
+const { pipeline } = require('stream/promises');
 
 const REPO = 'hyerin98/offwork-eyes';
 const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;
@@ -52,12 +59,82 @@ function newer(a, b) {
   return false;
 }
 
-async function latestVersion() {
+async function latestRelease() {
   const res = await net.fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
     headers: { 'User-Agent': 'OffWorkEyes-updater', Accept: 'application/vnd.github+json' },
   });
   if (!res.ok) throw new Error(`GitHub API ${res.status}`);
-  return (await res.json()).tag_name;
+  return res.json();
+}
+
+// ---------- macOS: download ahead, swap on click ----------
+
+const stageDir = () => path.join(app.getPath('userData'), 'update');
+const STAGED_APP = 'OffWork Eyes.app';
+let staged = null; // { version, app } once the new bundle is unpacked
+
+// .../OffWork Eyes.app/Contents/MacOS/OffWork Eyes -> .../OffWork Eyes.app
+function bundlePath() {
+  return path.resolve(app.getPath('exe'), '..', '..', '..');
+}
+
+function canSwapInPlace() {
+  const b = bundlePath();
+  if (!b.endsWith('.app') || b.startsWith('/Volumes/') || b.includes('/AppTranslocation/')) return false;
+  try {
+    fs.accessSync(path.dirname(b), fs.constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// a zip for this CPU (smaller), else the universal one from older releases
+function macZip(release) {
+  const zips = (release.assets || []).filter((a) => a.name.endsWith('.zip'));
+  return zips.find((a) => a.name.endsWith(`-mac-${process.arch}.zip`))
+    || zips.find((a) => a.name.endsWith('-mac-universal.zip') || a.name.endsWith('-mac.zip'));
+}
+
+const run = (cmd, args) => new Promise((resolve, reject) => {
+  execFile(cmd, args, (err) => (err ? reject(err) : resolve()));
+});
+
+async function stage(release, version) {
+  const asset = macZip(release);
+  if (!asset) throw new Error('no mac zip in the release');
+  const dir = stageDir();
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const zip = path.join(dir, 'app.zip');
+  const res = await net.fetch(asset.browser_download_url, { headers: { 'User-Agent': 'OffWorkEyes-updater' } });
+  if (!res.ok || !res.body) throw new Error(`download ${res.status}`);
+  await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(zip));
+  await run('/usr/bin/ditto', ['-x', '-k', zip, path.join(dir, 'new')]);
+  fs.rmSync(zip, { force: true });
+  const bundle = path.join(dir, 'new', STAGED_APP);
+  if (!fs.existsSync(path.join(bundle, 'Contents', 'MacOS'))) throw new Error('app missing in zip');
+  staged = { version, app: bundle };
+}
+
+// Runs after this app quits: wait for the process to exit, replace the bundle,
+// reopen it. Paths are passed as arguments, never pasted into the script.
+const SWAP_SH = `
+pid="$1"; new="$2"; dest="$3"; stage="$4"
+for i in $(seq 1 100); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+kill -9 "$pid" 2>/dev/null || true
+rm -rf "$dest" && ditto "$new" "$dest" || exit 1
+xattr -cr "$dest" 2>/dev/null || true
+rm -rf "$stage"
+open "$dest"
+`;
+
+function swapAndRelaunch() {
+  spawn('/bin/bash', ['-c', SWAP_SH, 'swap', String(process.pid), staged.app, bundlePath(), stageDir()], {
+    detached: true,
+    stdio: 'ignore',
+  }).unref();
+  app.quit();
 }
 
 async function check() {
@@ -71,11 +148,22 @@ async function check() {
     if (state.mode === 'nsis') {
       await autoUpdater.checkForUpdates();
     } else {
-      const tag = await latestVersion();
-      if (newer(tag, app.getVersion())) set({ status: 'available', version: tag.replace(/^v/, '') });
+      const release = await latestRelease();
+      const tag = release.tag_name;
+      if (!newer(tag, app.getVersion())) return;
+      const version = tag.replace(/^v/, '');
+      if (state.mode === 'script' && canSwapInPlace()) {
+        if (staged && staged.version === version && fs.existsSync(staged.app)) return set({ status: 'ready', version });
+        set({ status: 'downloading', version });
+        await stage(release, version);
+        set({ status: 'ready', version });
+      } else {
+        set({ status: 'available', version });
+      }
     }
   } catch (e) {
     console.warn('update check failed:', e.message); // offline etc.; try again later
+    if (state.status === 'downloading') set({ status: 'idle' });
   }
 }
 
@@ -83,6 +171,10 @@ function install() {
   if (state.mode === 'nsis' && state.status === 'ready') {
     if (process.env.OWE_FAKE_UPDATE) return console.log('[fake] quitAndInstall');
     autoUpdater.quitAndInstall(true, true); // silent install, relaunch afterwards
+  } else if (state.mode === 'script' && state.status === 'ready' && staged) {
+    set({ status: 'installing' });
+    if (process.env.OWE_FAKE_UPDATE) return console.log('[fake] swap bundle and relaunch');
+    swapAndRelaunch();
   } else if (state.mode === 'script' && state.status === 'available') {
     set({ status: 'installing' });
     if (process.env.OWE_FAKE_UPDATE) return console.log('[fake] run install-mac.sh');
