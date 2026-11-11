@@ -36,6 +36,7 @@ html, body {
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
+  overflow: clip; /* unlike hidden, can't be scrolled by focus either; only <main> scrolls */
 }
 
 body {
@@ -409,6 +410,8 @@ input:focus-visible, button:focus-visible {
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
+  position: relative; /* keeps the hidden checkbox inside the scrolling area, so
+                         focusing it never scrolls the whole window */
 }
 
 .switch input { position: absolute; opacity: 0; pointer-events: none; }
