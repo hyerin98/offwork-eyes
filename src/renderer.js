@@ -158,42 +158,13 @@ function scheduleMotion() {
 // a click (not a drag) squishes the body; the main process tells us which it was
 api.onPoke(() => play('squish'));
 
-// ---------- sound ----------
-// Short chiptune beeps made with WebAudio, so no sound files ship with the app.
-// Each sound gets its own AudioContext that is closed right after, so no audio
-// thread stays alive between chimes.
-
-const CHIME = [[988, 0.12], [1319, 0.3]];                          // ding-dong
-const FANFARE = [[523, 0.1], [659, 0.1], [784, 0.1], [1047, 0.4]]; // off-work!
-
-function beep(seq) {
-  let ctx;
-  try { ctx = new AudioContext(); } catch { return; }
-  const out = ctx.createGain();
-  out.gain.value = 0.05;
-  out.connect(ctx.destination);
-  let t = ctx.currentTime + 0.03;
-  for (const [freq, dur] of seq) {
-    const osc = ctx.createOscillator();
-    const env = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.value = freq;
-    env.gain.setValueAtTime(1, t);
-    env.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    osc.connect(env).connect(out);
-    osc.start(t);
-    osc.stop(t + dur);
-    t += dur * 0.9;
-  }
-  setTimeout(() => ctx.close(), (t - ctx.currentTime) * 1000 + 300);
-}
-
 const chimeOn = () => settings && settings.hourlyChime && !asleep;
 
-// ---------- sound effects ("slime pop") ----------
-// Bubbly pops and wobbly slides played with the motions. Sounds come close
-// together, so they share one AudioContext that is closed a few seconds after
-// the last one ends.
+// ---------- sound ("slime pop") ----------
+// Bubbly pops and wobbly slides for the motions, the hourly chime and the
+// off-work fanfare, all synthesized with WebAudio (no sound files ship with the
+// app). They share one AudioContext that is closed a few seconds after the
+// last sound ends, so no audio thread stays alive in between.
 
 const SFX_GAIN = 0.28; // same as the sketch's max volume, which sounded right
 let sfxCtx = null;
@@ -250,6 +221,16 @@ const slide = (t, f0, f1, d, wob = 0.12) => tone(t, f0, f1, d, { vib: f0 * wob, 
 const press = (t) => pop(t, 180, 620);
 const land = (t) => { tone(t, 140, 520, 0.07, { glide: 0.4, att: 0.003 }); tone(t + 0.06, 500, 180, 0.1, { v: 0.6 }); };
 const note = (t, f, d) => tone(t, f * 0.5, f, Math.max(d, 0.1), { glide: 0.25, att: 0.003, v: 0.8 });
+
+// hourly: three notes going down ("ding-dong-dang")
+const chime = () => { note(0, 784, 0.12); note(0.16, 659, 0.12); note(0.32, 523, 0.3); };
+// off time: do-mi-sol, then a long wobbly high do
+const fanfare = () => {
+  note(0, 523, 0.11);
+  note(0.12, 659, 0.11);
+  note(0.24, 784, 0.11);
+  tone(0.38, 523, 1047, 0.6, { glide: 0.12, att: 0.003, vib: 42, rate: 9, v: 0.8 });
+};
 
 // timings line up with the keyframes in style.css
 const SFX = {
@@ -373,9 +354,9 @@ function updateCountdown(tick = false) {
 
   // on the hour (only when the minute timer fires, not on start or settings changes)
   if (offNow) {
-    if (chimeOn()) beep(FANFARE);
+    if (chimeOn()) fanfare();
   } else if (tick && new Date().getMinutes() === 0) {
-    if (chimeOn()) beep(CHIME);
+    if (chimeOn()) chime();
     if (!asleep) hop();
   }
   if (msg !== lastMsg) relayout();
@@ -422,7 +403,7 @@ function applySettings(s) {
     scheduleMotion();
     if (old && s.motion) randomIdle(); // preview when turned on
   }
-  if (old && !old.hourlyChime && s.hourlyChime) beep(CHIME); // preview
+  if (old && !old.hourlyChime && s.hourlyChime) chime(); // preview
   if (old && old.sfx === false && s.sfx !== false && s.motion !== false) SFX.squish(); // preview
   root.style.setProperty('--s', s.scale);
   buddy.classList.toggle('no-body', !s.bodyColor);
