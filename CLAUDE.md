@@ -24,9 +24,9 @@ Electron 앱이며 Windows와 macOS에 배포합니다. 사용자는 회사 동�
 | `src/panel.*` | 설정 패널: 퇴근 시간, 몸/눈동자 색상(5색 팔레트 + 색상 선택기 + 스포이드 + HEX), 표정, 크기, 항상 위, 자동 실행, 업데이트 안내, 현재 버전, "개발자에게 한마디" 피드백 화면(작성 → 전송 중 → 완료/실패, 초안은 localStorage에 보관). 색은 회사 키컬러(`:root` 토큰), 제목·버튼·말풍선은 갈무리 글꼴 |
 | `src/feedback.js` | 피드백을 구글 폼(`formResponse`)으로 전송. 질문 entry id는 폼과 맞춰야 합니다. 응답은 개발자의 구글 시트에 쌓이고 메일 알림이 옵니다. `OWE_FAKE_FEEDBACK=ok`/`fail`로 전송 없이 화면을 확인할 수 있습니다 |
 | `src/eyedropper.*` | Windows용 전체 화면 스포이드. 패널이 열려 있는 동안 창을 미리 만들어 두고, 투명하게 먼저 띄운 뒤 화면을 캡처합니다 |
-| `src/updater.js` | 업데이트: Windows 설치형은 electron-updater, Mac은 GitHub API로 확인 후 `install-mac.sh` 실행, Portable은 다운로드 페이지 열기. 시작 15초 후·1시간마다 확인, 화면 잠금/절전 중에는 멈춤 |
+| `src/updater.js` | 업데이트: Windows 설치형은 electron-updater, Mac은 GitHub API로 확인한 뒤 CPU에 맞는 zip을 `userData/update`에 미리 받아 풀어 두고, 재시작을 누르면 앱이 종료된 다음 스크립트가 번들을 교체하고 다시 엽니다(제자리 교체가 안 되면 `install-mac.sh`), Portable은 다운로드 페이지 열기. 시작 15초 후·1시간마다 확인, 화면 잠금/절전 중에는 멈춤 |
 | `src/store.js` | `%APPDATA%/OffWork Eyes/settings.json` 저장. 예전 키(`color`) 변환 포함 |
-| `install-mac.sh` | Mac 설치·업데이트 스크립트. curl로 받으면 quarantine이 붙지 않아 "손상" 경고 없이 열립니다 |
+| `install-mac.sh` | Mac 설치·업데이트 스크립트. CPU에 맞는 zip(`-mac-arm64`/`-mac-x64`, 없으면 예전 `-mac.zip`)을 받습니다. curl로 받으면 quarantine이 붙지 않아 "손상" 경고 없이 열립니다. Mac zip은 아키텍처별, dmg는 universal입니다 |
 | `scripts/make-icons.js` | 의존성 없이 아이콘 PNG 생성(`npm run icons`) |
 
 ## 알아 둘 점
