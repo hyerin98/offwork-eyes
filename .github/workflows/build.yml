@@ -43,11 +43,13 @@ jobs:
       - name: Verify macOS ad-hoc signature
         if: runner.os == 'macOS'
         run: |
-          app=$(find dist -maxdepth 2 -name "*.app" -type d | head -n 1)
-          echo "checking $app"
-          codesign --verify --deep --strict --verbose=2 "$app"
-          codesign -dv "$app" 2>&1 | grep -E "Identifier|Signature|flags"
-          lipo -archs "$app/Contents/MacOS/OffWork Eyes"
+          # universal (dmg) plus arm64 and x64 (the zips that updates use)
+          find dist -maxdepth 2 -name "*.app" -type d | while read -r app; do
+            echo "checking $app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+            codesign -dv "$app" 2>&1 | grep -E "Identifier|Signature|flags"
+            lipo -archs "$app/Contents/MacOS/OffWork Eyes"
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: OffWorkEyes-${{ runner.os }}

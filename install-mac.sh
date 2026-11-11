@@ -9,13 +9,23 @@ set -euo pipefail
 
 REPO="hyerin98/offwork-eyes"
 APP="OffWork Eyes.app"
+BIN="OffWork Eyes.app/Contents/MacOS/OffWork Eyes"
 
 echo "OffWork Eyes 설치를 시작합니다."
 
-URL=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
-  | grep -o '"browser_download_url": *"[^"]*-mac\.zip"' \
-  | head -n 1 \
-  | sed -E 's/.*"(https[^"]+)"/\1/')
+# Apple Silicon or Intel (sysctl answers correctly even under Rosetta)
+ARCH=x64
+if [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = "1" ]; then ARCH=arm64; fi
+
+URLS=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
+  | grep -o '"browser_download_url": *"[^"]*\.zip"' \
+  | sed -E 's/.*"(https[^"]+)"/\1/' || true)
+
+# a zip for this CPU (about half the size), else the universal one (older releases)
+URL=$(printf '%s\n' "$URLS" | grep -e "-mac-$ARCH\.zip$" | head -n 1 || true)
+if [ -z "$URL" ]; then
+  URL=$(printf '%s\n' "$URLS" | grep -e "-mac\.zip$" -e "-mac-universal\.zip$" | head -n 1 || true)
+fi
 
 if [ -z "$URL" ]; then
   echo "다운로드 주소를 찾지 못했습니다. 잠시 후 다시 시도해 주세요." >&2
@@ -41,7 +51,15 @@ if [ ! -w "$DEST" ]; then
   mkdir -p "$DEST"
 fi
 
-pkill -x "OffWork Eyes" 2>/dev/null || true
+# Quit the running widget and wait until it is really gone before replacing it.
+# Otherwise "open" below only brings the old, still-running copy to the front.
+pkill -f "$BIN" 2>/dev/null || true
+for _ in $(seq 1 50); do
+  pgrep -f "$BIN" >/dev/null 2>&1 || break
+  sleep 0.1
+done
+pkill -9 -f "$BIN" 2>/dev/null || true
+
 rm -rf "$DEST/$APP"
 ditto "$TMP/unzipped/$APP" "$DEST/$APP"
 xattr -cr "$DEST/$APP" 2>/dev/null || true
