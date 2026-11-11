@@ -397,6 +397,8 @@ input:focus-visible, button:focus-visible {
   cursor: pointer;
 }
 
+.seg button.pixfont { font-family: var(--pixel); -webkit-font-smoothing: none; }
+
 .seg button[aria-checked="true"] {
   background: #fff;
   font-weight: 700;

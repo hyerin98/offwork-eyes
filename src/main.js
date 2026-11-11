@@ -143,6 +143,7 @@ function sanitize(p) {
   if (typeof p.pupilSize === 'number' && Number.isFinite(p.pupilSize)) out.pupilSize = clamp(p.pupilSize, 0.6, 1.5);
   if (p.size in SIZES) out.size = p.size;
   if (p.bubbleStyle === 'classic' || p.bubbleStyle === 'battery') out.bubbleStyle = p.bubbleStyle;
+  if (p.bubbleFont === 'pixel' || p.bubbleFont === 'system') out.bubbleFont = p.bubbleFont;
   for (const k of ['alwaysOnTop', 'openAtLogin']) if (typeof p[k] === 'boolean') out[k] = p[k];
   return out;
 }

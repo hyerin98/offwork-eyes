@@ -243,6 +243,7 @@ function applySettings(s) {
   const offChanged = !settings || settings.offTime !== s.offTime || settings.bubbleStyle !== s.bubbleStyle;
   settings = s;
   root.classList.toggle('style-battery', s.bubbleStyle === 'battery');
+  root.classList.toggle('font-system', s.bubbleFont === 'system');
   root.style.setProperty('--s', s.scale);
   buddy.classList.toggle('no-body', !s.bodyColor);
   if (s.bodyColor) buddy.style.setProperty('--body', s.bodyColor);

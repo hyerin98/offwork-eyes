@@ -9,6 +9,7 @@ const DEFAULTS = {
   pupilShape: 'circle',
   pupilSize: 1,
   bubbleStyle: 'classic', // 'classic' | 'battery'
+  bubbleFont: 'pixel', // 'pixel' | 'system'
   size: 'medium',
   alwaysOnTop: true,
   openAtLogin: false,

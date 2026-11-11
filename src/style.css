@@ -85,6 +85,13 @@ html, body {
 
 #text { position: relative; z-index: 1; }
 
+/* "기본" font option: the system font instead of the pixel one */
+.font-system #bubble {
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: auto;
+}
+
 #battery { display: none; }
 
 /* ---------- "off-work battery" style: same pixel bubble + bolt + battery ---------- */

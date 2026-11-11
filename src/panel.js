@@ -302,6 +302,21 @@ refreshers.push(() => {
   $('bubbleHint').textContent = BUBBLE_HINTS[style];
 });
 
+// segmented radio groups that map 1:1 to a setting
+function radioGroup(key, fallback) {
+  const btns = $(key).querySelectorAll('button');
+  for (const b of btns) {
+    b.setAttribute('role', 'radio');
+    b.addEventListener('click', () => api.update({ [key]: b.dataset.v }));
+  }
+  refreshers.push(() => {
+    const v = settings[key] || fallback;
+    for (const b of btns) b.setAttribute('aria-checked', String(b.dataset.v === v));
+  });
+}
+
+radioGroup('bubbleFont', 'pixel');
+
 for (const key of ['alwaysOnTop', 'openAtLogin']) {
   $(key).addEventListener('change', (e) => api.update({ [key]: e.target.checked }));
   refreshers.push(() => { $(key).checked = settings[key]; });
