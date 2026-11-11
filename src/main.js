@@ -144,7 +144,7 @@ function sanitize(p) {
   if (p.size in SIZES) out.size = p.size;
   if (p.bubbleStyle === 'classic' || p.bubbleStyle === 'battery') out.bubbleStyle = p.bubbleStyle;
   if (p.bubbleFont === 'pixel' || p.bubbleFont === 'system') out.bubbleFont = p.bubbleFont;
-  for (const k of ['alwaysOnTop', 'openAtLogin']) if (typeof p[k] === 'boolean') out[k] = p[k];
+  for (const k of ['alwaysOnTop', 'openAtLogin', 'motion', 'hourlyChime']) if (typeof p[k] === 'boolean') out[k] = p[k];
   return out;
 }
 
@@ -488,6 +488,7 @@ ipcMain.on('drag-end', () => {
     settings.position = { x, y };
     store.save();
   } else {
+    win.webContents.send('poke'); // squish reaction
     togglePanel(); // a click without movement opens the settings panel
   }
 });
@@ -508,6 +509,7 @@ app.whenReady().then(() => {
   updater.start(() => pushSettings());
 
   const pause = () => {
+    if (win) win.webContents.send('sleep'); // stop idle motions and chimes
     stopPolling();
     updater.pause();
     clearInterval(topTimer);

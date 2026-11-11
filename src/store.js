@@ -10,6 +10,8 @@ const DEFAULTS = {
   pupilSize: 1,
   bubbleStyle: 'classic', // 'classic' | 'battery'
   bubbleFont: 'pixel', // 'pixel' | 'system'
+  motion: true, // idle motions every 30-60s
+  hourlyChime: false,
   size: 'medium',
   alwaysOnTop: true,
   openAtLogin: false,
@@ -31,6 +33,7 @@ function load() {
     saved = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, ''));
   } catch {}
   data = { ...DEFAULTS, ...saved };
+  if (typeof data.motion === 'string') data.motion = data.motion !== 'off'; // 1.0.9 dev builds
   if ('color' in data) {
     if (!('bodyColor' in saved) && data.color in LEGACY_COLORS) data.bodyColor = LEGACY_COLORS[data.color];
     delete data.color;

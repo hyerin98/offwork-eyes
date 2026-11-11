@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('api', {
   // widget
   onCursor: (cb) => ipcRenderer.on('cursor', (_e, x, y) => cb(x, y)),
   onRefresh: (cb) => ipcRenderer.on('refresh', () => cb()),
+  onSleep: (cb) => ipcRenderer.on('sleep', () => cb()),
+  onPoke: (cb) => ipcRenderer.on('poke', () => cb()),
   setHitRects: (rects) => ipcRenderer.send('hit-rects', rects),
   dragStart: () => ipcRenderer.send('drag-start'),
   dragEnd: () => ipcRenderer.send('drag-end'),

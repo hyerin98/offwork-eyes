@@ -100,12 +100,94 @@ function scheduleBlink() {
   }, 2500 + Math.random() * 5500);
 }
 
-function hop() {
-  root.classList.remove('hop');
-  void root.offsetWidth;
-  root.classList.add('hop');
+// ---------- motions ----------
+// One-shot CSS animations on the body, played now and then. Nothing runs
+// between them, so an idle widget still costs nothing.
+
+const IDLE = ['bounce', 'whine', 'stretch', 'spin', 'jelly', 'dance', 'walk', 'wink', 'roll', 'bow'];
+const GAP = [30000, 60000]; // ms between idle motions, picked at random
+let playing = '';
+let motionTimer = null;
+let asleep = false; // screen locked or suspended
+let lastIdle = '';
+
+const moving = () => settings && settings.motion !== false;
+
+let motionEnd = null;
+
+function stopMotion() {
+  clearTimeout(motionEnd);
+  if (playing) root.classList.remove(`m-${playing}`);
+  playing = '';
 }
-root.addEventListener('animationend', () => root.classList.remove('hop'));
+
+function play(name) {
+  if (!moving()) return;
+  stopMotion();
+  void root.offsetWidth; // restart the animation if the same one is playing
+  playing = name;
+  root.classList.add(`m-${name}`);
+  // animationend can be missed while the window isn't painted (e.g. covered),
+  // and a stuck `playing` would stop idle motions for good
+  motionEnd = setTimeout(stopMotion, 2600);
+}
+
+buddy.addEventListener('animationend', (e) => {
+  if (e.target === buddy) stopMotion();
+});
+
+function hop() { play('hop'); }
+
+// never the same one twice in a row; no wink at off time (the eyes are already ^ ^)
+function randomIdle() {
+  const pool = IDLE.filter((m) => m !== lastIdle && !(happy && m === 'wink'));
+  lastIdle = pool[Math.floor(Math.random() * pool.length)];
+  play(lastIdle);
+}
+
+function scheduleMotion() {
+  clearTimeout(motionTimer);
+  if (!moving() || asleep) return;
+  motionTimer = setTimeout(() => {
+    if (!dragging && !playing) randomIdle();
+    scheduleMotion();
+  }, GAP[0] + Math.random() * (GAP[1] - GAP[0]));
+}
+
+// a click (not a drag) squishes the body; the main process tells us which it was
+api.onPoke(() => play('squish'));
+
+// ---------- sound ----------
+// Short chiptune beeps made with WebAudio, so no sound files ship with the app.
+// Each sound gets its own AudioContext that is closed right after, so no audio
+// thread stays alive between chimes.
+
+const CHIME = [[988, 0.12], [1319, 0.3]];                          // ding-dong
+const FANFARE = [[523, 0.1], [659, 0.1], [784, 0.1], [1047, 0.4]]; // off-work!
+
+function beep(seq) {
+  let ctx;
+  try { ctx = new AudioContext(); } catch { return; }
+  const out = ctx.createGain();
+  out.gain.value = 0.05;
+  out.connect(ctx.destination);
+  let t = ctx.currentTime + 0.03;
+  for (const [freq, dur] of seq) {
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    env.gain.setValueAtTime(1, t);
+    env.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(env).connect(out);
+    osc.start(t);
+    osc.stop(t + dur);
+    t += dur * 0.9;
+  }
+  setTimeout(() => ctx.close(), (t - ctx.currentTime) * 1000 + 300);
+}
+
+const chimeOn = () => settings && settings.hourlyChime && !asleep;
 
 // ---------- countdown ----------
 
@@ -168,7 +250,7 @@ document.getElementById('battery').addEventListener('animationend', (e) => {
   if (e.animationName === 'flash') bubble.classList.remove('flash');
 });
 
-function updateCountdown() {
+function updateCountdown(tick = false) {
   if (!settings) return;
   clearTimeout(minuteTimer);
   const diff = offDate() - Date.now();
@@ -195,22 +277,32 @@ function updateCountdown() {
   bubble.classList.toggle('near', near);
   bubble.classList.toggle('party', party);
 
+  let offNow = false;
   if (party !== happy) {
     happy = party;
     eyes.classList.toggle('is-happy', happy);
     if (happy) {
+      offNow = tick;
       hop();
       if (batteryStyle()) flash();
     }
   } else if (near && msg !== lastMsg && lastMsg) {
     hop();
   }
+
+  // on the hour (only when the minute timer fires, not on start or settings changes)
+  if (offNow) {
+    if (chimeOn()) beep(FANFARE);
+  } else if (tick && new Date().getMinutes() === 0) {
+    if (chimeOn()) beep(CHIME);
+    if (!asleep) hop();
+  }
   if (msg !== lastMsg) relayout();
   lastMsg = msg;
 
   // Wake exactly when the displayed minute changes, not every second.
   const toNext = ((diff % 60000) + 60000) % 60000 || 60000;
-  minuteTimer = setTimeout(updateCountdown, toNext + 30);
+  minuteTimer = setTimeout(() => updateCountdown(true), toNext + 30);
 }
 
 // ---------- drag / click / menu ----------
@@ -240,10 +332,16 @@ window.addEventListener('contextmenu', (e) => {
 // ---------- settings ----------
 
 function applySettings(s) {
-  const offChanged = !settings || settings.offTime !== s.offTime || settings.bubbleStyle !== s.bubbleStyle;
+  const old = settings;
+  const offChanged = !old || old.offTime !== s.offTime || old.bubbleStyle !== s.bubbleStyle;
   settings = s;
   root.classList.toggle('style-battery', s.bubbleStyle === 'battery');
   root.classList.toggle('font-system', s.bubbleFont === 'system');
+  if (!old || old.motion !== s.motion) {
+    scheduleMotion();
+    if (old && s.motion) randomIdle(); // preview when turned on
+  }
+  if (old && !old.hourlyChime && s.hourlyChime) beep(CHIME); // preview
   root.style.setProperty('--s', s.scale);
   buddy.classList.toggle('no-body', !s.bodyColor);
   if (s.bodyColor) buddy.style.setProperty('--body', s.bodyColor);
@@ -257,8 +355,14 @@ function applySettings(s) {
 
 api.onSettings(applySettings);
 api.onRefresh(() => {
+  asleep = false;
   lastMsg = '';
   updateCountdown();
+  scheduleMotion();
+});
+api.onSleep(() => {
+  asleep = true;
+  clearTimeout(motionTimer);
 });
 window.addEventListener('resize', relayout);
 
