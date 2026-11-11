@@ -127,6 +127,7 @@ function play(name) {
   void root.offsetWidth; // restart the animation if the same one is playing
   playing = name;
   root.classList.add(`m-${name}`);
+  if (SFX[name] && sfxOn()) SFX[name]();
   // animationend can be missed while the window isn't painted (e.g. covered),
   // and a stuck `playing` would stop idle motions for good
   motionEnd = setTimeout(stopMotion, 2600);
@@ -188,6 +189,86 @@ function beep(seq) {
 }
 
 const chimeOn = () => settings && settings.hourlyChime && !asleep;
+
+// ---------- sound effects ("slime pop") ----------
+// Bubbly pops and wobbly slides played with the motions. Sounds come close
+// together, so they share one AudioContext that is closed a few seconds after
+// the last one ends.
+
+const SFX_GAIN = 0.28; // same as the sketch's max volume, which sounded right
+let sfxCtx = null;
+let sfxUntil = 0;
+let sfxClose = null;
+
+const sfxOn = () => settings && settings.sfx !== false && !asleep;
+
+function sfxAudio(seconds) {
+  if (!sfxCtx) {
+    try { sfxCtx = new AudioContext(); } catch { return null; }
+    sfxUntil = 0;
+  }
+  sfxUntil = Math.max(sfxUntil, sfxCtx.currentTime + seconds);
+  clearTimeout(sfxClose);
+  sfxClose = setTimeout(() => {
+    sfxCtx.close();
+    sfxCtx = null;
+  }, (sfxUntil - sfxCtx.currentTime) * 1000 + 1500);
+  return sfxCtx;
+}
+
+// one voice: pitch glides f0 -> f1, optional vibrato (vib Hz deep at `rate` Hz)
+function tone(t, f0, f1, d, { v = 1, vib = 0, rate = 20, glide = 1, att = 0.008 } = {}) {
+  const ctx = sfxAudio(t + d + 0.1);
+  if (!ctx) return;
+  const s = ctx.currentTime + 0.03 + t;
+  const osc = ctx.createOscillator();
+  const env = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(f0, s);
+  osc.frequency.exponentialRampToValueAtTime(f1, s + d * glide);
+  if (vib) {
+    const lfo = ctx.createOscillator();
+    const depth = ctx.createGain();
+    lfo.frequency.value = rate;
+    depth.gain.setValueAtTime(vib, s);
+    depth.gain.exponentialRampToValueAtTime(0.5, s + d);
+    lfo.connect(depth).connect(osc.frequency);
+    lfo.start(s);
+    lfo.stop(s + d + 0.02);
+  }
+  env.gain.setValueAtTime(0.0001, s);
+  env.gain.exponentialRampToValueAtTime(SFX_GAIN * v, s + att);
+  env.gain.exponentialRampToValueAtTime(0.0001, s + d);
+  osc.connect(env).connect(ctx.destination);
+  osc.start(s);
+  osc.stop(s + d + 0.02);
+}
+
+// building blocks
+const pop = (t, f0, f1, v = 1) => tone(t, f0, f1, 0.06, { glide: 0.5, att: 0.003, v });
+const slide = (t, f0, f1, d, wob = 0.12) => tone(t, f0, f1, d, { vib: f0 * wob, rate: 21, v: 0.8 });
+const press = (t) => pop(t, 180, 620);
+const land = (t) => { tone(t, 140, 520, 0.07, { glide: 0.4, att: 0.003 }); tone(t + 0.06, 500, 180, 0.1, { v: 0.6 }); };
+const note = (t, f, d) => tone(t, f * 0.5, f, Math.max(d, 0.1), { glide: 0.25, att: 0.003, v: 0.8 });
+
+// timings line up with the keyframes in style.css
+const SFX = {
+  squish: () => { press(0); slide(0.13, 200, 760, 0.13); },
+  bounce: () => { press(0.2); slide(0.3, 320, 980, 0.24); land(0.82); },
+  whine: () => [0.1, 0.24, 0.36, 0.5, 0.62].forEach((t, i) => note(t, i % 2 ? 470 : 560, 0.11)),
+  stretch: () => { slide(0.2, 260, 640, 0.62); slide(1.12, 520, 190, 0.16, 0.1); },
+  spin: () => { press(0.2); slide(0.28, 380, 1300, 0.55); land(0.98); },
+  jelly: () => [0, 0.12, 0.24, 0.36, 0.48].forEach((t, i) => pop(t, 200 - i * 10, 700 - i * 60, 0.8 - i * 0.1)),
+  dance: () => [[0.15, 523], [0.35, 659], [0.55, 784], [0.75, 659], [0.95, 784], [1.15, 880], [1.6, 1047]]
+    .forEach(([t, f], i) => note(t, f, i === 6 ? 0.3 : 0.12)),
+  walk: () => [0.16, 0.35, 0.52, 0.7, 1.12, 1.3, 1.48, 1.66].forEach((t, i) => {
+    const f = i % 2 ? 260 : 300;
+    pop(t, f * 0.6, f * 2, 0.8);
+  }),
+  wink: () => { pop(0.38, 700, 2200, 0.6); pop(0.46, 900, 2800, 0.5); },
+  roll: () => { slide(0.1, 480, 820, 0.45); slide(0.55, 820, 480, 0.45, 0.1); slide(1.3, 420, 200, 0.35, 0.1); },
+  bow: () => { slide(0.3, 520, 340, 0.14, 0.1); slide(1.0, 360, 640, 0.1); },
+};
 
 // ---------- countdown ----------
 
@@ -342,6 +423,7 @@ function applySettings(s) {
     if (old && s.motion) randomIdle(); // preview when turned on
   }
   if (old && !old.hourlyChime && s.hourlyChime) beep(CHIME); // preview
+  if (old && old.sfx === false && s.sfx !== false && s.motion !== false) SFX.squish(); // preview
   root.style.setProperty('--s', s.scale);
   buddy.classList.toggle('no-body', !s.bodyColor);
   if (s.bodyColor) buddy.style.setProperty('--body', s.bodyColor);

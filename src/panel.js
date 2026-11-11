@@ -317,7 +317,7 @@ function radioGroup(key, fallback) {
 
 radioGroup('bubbleFont', 'pixel');
 
-for (const key of ['alwaysOnTop', 'openAtLogin', 'motion', 'hourlyChime']) {
+for (const key of ['alwaysOnTop', 'openAtLogin', 'motion', 'sfx', 'hourlyChime']) {
   $(key).addEventListener('change', (e) => api.update({ [key]: e.target.checked }));
   refreshers.push(() => { $(key).checked = settings[key]; });
 }

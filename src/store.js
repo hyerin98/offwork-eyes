@@ -11,6 +11,7 @@ const DEFAULTS = {
   bubbleStyle: 'classic', // 'classic' | 'battery'
   bubbleFont: 'pixel', // 'pixel' | 'system'
   motion: true, // idle motions every 30-60s
+  sfx: true, // sound effects with the motions
   hourlyChime: false,
   size: 'medium',
   alwaysOnTop: true,

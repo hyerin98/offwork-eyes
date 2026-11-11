@@ -144,7 +144,7 @@ function sanitize(p) {
   if (p.size in SIZES) out.size = p.size;
   if (p.bubbleStyle === 'classic' || p.bubbleStyle === 'battery') out.bubbleStyle = p.bubbleStyle;
   if (p.bubbleFont === 'pixel' || p.bubbleFont === 'system') out.bubbleFont = p.bubbleFont;
-  for (const k of ['alwaysOnTop', 'openAtLogin', 'motion', 'hourlyChime']) if (typeof p[k] === 'boolean') out[k] = p[k];
+  for (const k of ['alwaysOnTop', 'openAtLogin', 'motion', 'sfx', 'hourlyChime']) if (typeof p[k] === 'boolean') out[k] = p[k];
   return out;
 }
 
