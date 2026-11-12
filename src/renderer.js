@@ -149,6 +149,36 @@ function randomIdle() {
   play(lastIdle);
 }
 
+// Clicking the character plays a random motion right away (cutting off the one
+// playing). Five clicks within two seconds make it dizzy.
+// Until the user has opened the settings from the bubble once, a click also
+// says where the settings went, at most once every HINT_GAP.
+const DIZZY_CLICKS = 5;
+const DIZZY_WINDOW = 2000;
+const HINT_GAP = 10 * 60 * 1000;
+let clicks = [];
+let learned = false; // opened the settings by clicking the bubble at least once
+let lastHint = 0;
+
+function pokeBuddy() {
+  if (!moving()) return;
+  const now = Date.now();
+  clicks = clicks.filter((t) => now - t < DIZZY_WINDOW);
+  clicks.push(now);
+  if (clicks.length >= DIZZY_CLICKS) {
+    clicks = [];
+    play('dizzy');
+    flashNotice('그만 눌러… 어지러워', 2200);
+    return;
+  }
+  randomIdle();
+  scheduleMotion(); // no idle motion right after the user's own
+  if (!learned && now - lastHint > HINT_GAP) {
+    lastHint = now;
+    flashNotice('설정은 말풍선을 눌러요', 2200);
+  }
+}
+
 function scheduleMotion() {
   clearTimeout(motionTimer);
   if (!moving() || asleep) return;
@@ -158,8 +188,18 @@ function scheduleMotion() {
   }, GAP[0] + Math.random() * (GAP[1] - GAP[0]));
 }
 
-// a click (not a drag) squishes the body; the main process tells us which it was
-api.onPoke(() => play('squish'));
+// The main process tells us when a press was a click, not a drag: the
+// character plays, the bubble opens the settings panel.
+let pressed = null;
+api.onPoke(() => {
+  if (guiding) endGuide();
+  if (pressed === bubble) {
+    learned = true; // the main process saves it as bubbleLearned
+    api.togglePanel();
+  } else {
+    pokeBuddy();
+  }
+});
 
 const chimeOn = () => settings && settings.hourlyChime && !asleep;
 
@@ -250,6 +290,7 @@ const SFX = {
     pop(t, f * 0.6, f * 2, 0.8);
   }),
   wink: () => { pop(0.38, 700, 2200, 0.6); pop(0.46, 900, 2800, 0.5); },
+  dizzy: () => { slide(0, 900, 420, 0.7, 0.3); slide(0.8, 640, 300, 0.7, 0.3); },
   roll: () => { slide(0.1, 480, 820, 0.45); slide(0.55, 820, 480, 0.45, 0.1); slide(1.3, 420, 200, 0.35, 0.1); },
   bow: () => { slide(0.3, 520, 340, 0.14, 0.1); slide(1.0, 360, 640, 0.1); },
 };
@@ -337,7 +378,8 @@ function updateCountdown(tick = false) {
     }
   }
 
-  text.textContent = msg;
+  countdownMsg = msg;
+  if (!notice) text.textContent = msg;
   renderBattery(diff);
   bubble.classList.toggle('near', near);
   bubble.classList.toggle('party', party);
@@ -370,13 +412,86 @@ function updateCountdown(tick = false) {
   minuteTimer = setTimeout(() => updateCountdown(true), toNext + 30);
 }
 
+// ---------- notices in the bubble ----------
+// Short messages (the update guide, the dizzy reaction) fade in place of the
+// countdown, then the countdown fades back. The battery hides meanwhile so
+// the text fits the window.
+
+const FADE = 280;
+let countdownMsg = '';
+let notice = '';
+let fadeTimer = null;
+let noticeTimer = null;
+
+function showText(msg) {
+  clearTimeout(fadeTimer);
+  text.classList.add('hide');
+  fadeTimer = setTimeout(() => {
+    text.textContent = msg;
+    bubble.classList.toggle('notice', !!notice);
+    text.classList.remove('hide');
+    relayout();
+  }, FADE);
+}
+
+function setNotice(msg) {
+  clearTimeout(noticeTimer);
+  notice = msg;
+  showText(msg || countdownMsg);
+}
+
+function flashNotice(msg, ms) {
+  setNotice(msg);
+  noticeTimer = setTimeout(() => setNotice(''), ms);
+}
+
+// ---------- update guide ----------
+// Shown once after the update that moved "open settings" from the character to
+// the bubble (and once for new users after the first settings panel closes).
+
+let guiding = false;
+let guideTimers = [];
+
+function glowBubble() {
+  bubble.classList.remove('glow');
+  void bubble.offsetWidth;
+  bubble.classList.add('glow');
+}
+bubble.addEventListener('animationend', (e) => {
+  if (e.animationName === 'glow') bubble.classList.remove('glow');
+});
+
+function startGuide(isNew) {
+  if (guiding || !settings) return;
+  guiding = true;
+  const steps = [[0, () => { setNotice(isNew ? '반가워요!' : '새로워졌어요!'); hop(); }]];
+  let t = 2600;
+  if (moving()) {
+    steps.push([t, () => { setNotice('저를 콕콕 눌러 보세요'); hop(); }], [t + 1100, hop]);
+    t += 2600;
+  }
+  steps.push([t, () => { setNotice('설정은 말풍선을 눌러요'); glowBubble(); }], [t + 3600, endGuide]);
+  guideTimers = steps.map(([ms, fn]) => setTimeout(fn, ms));
+}
+
+function endGuide() {
+  if (!guiding) return;
+  guiding = false;
+  guideTimers.forEach(clearTimeout);
+  lastHint = Date.now(); // the guide just said it
+  setNotice('');
+  api.guideDone();
+}
+
+api.onGuide(startGuide);
+
 // ---------- drag / click / menu ----------
-// The main process decides whether a press was a drag or a click
-// (a click opens the settings panel).
+// The main process decides whether a press was a drag or a click.
 
 function onDown(e) {
   if (e.button !== 0) return;
   dragging = true;
+  pressed = e.currentTarget;
   api.dragStart();
 }
 
@@ -400,6 +515,7 @@ function applySettings(s) {
   const old = settings;
   const offChanged = !old || old.offTime !== s.offTime || old.bubbleStyle !== s.bubbleStyle;
   settings = s;
+  if (s.bubbleLearned) learned = true;
   root.classList.toggle('style-battery', s.bubbleStyle === 'battery');
   root.classList.toggle('font-system', s.bubbleFont === 'system');
   if (!old || old.motion !== s.motion) {

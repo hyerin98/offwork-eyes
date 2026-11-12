@@ -83,7 +83,22 @@ html, body {
 #bubble.near { color: #e2490b; --line: #e2490b; }
 #bubble.party { background: #fff4c2; }
 
-#text { position: relative; z-index: 1; }
+#text {
+  position: relative;
+  z-index: 1;
+  transition: opacity 280ms ease;
+}
+
+/* notices (update guide, dizzy reaction) fade in place of the countdown */
+#text.hide { opacity: 0; }
+#bubble.notice #battery { display: none; }
+
+/* update guide: "the bubble opens settings" */
+#bubble.glow { animation: glow 1500ms steps(1) 1; }
+@keyframes glow {
+  0%, 50% { background: #ffe98a; }
+  25%, 75% { background: #fff; }
+}
 
 /* "기본" font option: the system font instead of the pixel one */
 .font-system #bubble {
@@ -256,6 +271,7 @@ html, body {
 #root.m-wink .happy > :nth-child(2) { opacity: 0; animation: wink-shut 1300ms ease-in-out 1; }
 
 #root.m-squish #buddy { animation: squish 560ms ease-out 1; }
+#root.m-dizzy #buddy { animation: dizzy 1800ms ease-in-out 1; }
 #root.m-squish:not(.faces) #lids { animation: squint 560ms ease-out 1; }
 
 /* crouch, jump high with a waddle in the air, squash on landing */
@@ -485,6 +501,8 @@ html, body {
 #root.faces.m-dance .masked { animation: dance-masked 2000ms step-end 1; }
 #root.faces.m-bow .cf-smile { animation: bow-cf-smile 1400ms step-end 1; }
 #root.faces.m-bow .masked { animation: bow-masked 1400ms step-end 1; }
+#root.faces.m-dizzy .pf-dizzy { animation: dizzy-pf-dizzy 1800ms step-end 1; }
+#root.faces.m-dizzy .pf-base { animation: dizzy-pf-base 1800ms step-end 1; }
 
 @keyframes squish-cf-squeeze { 0% { opacity: 0; } 5% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes squish-masked { 0% { opacity: 1; } 5% { opacity: 0; } 50% { opacity: 1; } }
@@ -508,4 +526,16 @@ html, body {
 @keyframes dance-masked { 0% { opacity: 1; } 8% { opacity: 0; } 78% { opacity: 1; } }
 @keyframes bow-cf-smile { 0% { opacity: 0; } 22% { opacity: 1; } 66% { opacity: 0; } }
 @keyframes bow-masked { 0% { opacity: 1; } 22% { opacity: 0; } 66% { opacity: 1; } }
+@keyframes dizzy-pf-dizzy { 0% { opacity: 1; } 96% { opacity: 0; } }
+@keyframes dizzy-pf-base { 0% { opacity: 0; } 96% { opacity: 1; } }
 
+/* too many clicks: wobbles dizzily */
+@keyframes dizzy {
+  0%, 100% { transform: none; }
+  10% { transform: rotate(-10deg); }
+  25% { transform: rotate(10deg); }
+  40% { transform: rotate(-8deg); }
+  55% { transform: rotate(8deg); }
+  70% { transform: rotate(-4deg); }
+  85% { transform: rotate(2deg); }
+}

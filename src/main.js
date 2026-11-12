@@ -22,6 +22,9 @@ const LEGACY_SHAPES = { star: 'sparkle', heart: 'payday' };
 const HEX = /^#[0-9a-f]{6}$/i;
 const PANEL = { w: 320, h: 820 };
 const PRELOAD = path.join(__dirname, 'preload.js');
+// Bump to show the widget's one-time guide again after a change in how it's used.
+// 1: clicking the character plays a motion; the bubble opens the settings panel
+const GUIDE = 1;
 
 let settings;
 let win = null;
@@ -79,6 +82,7 @@ function createWindow() {
     win.showInactive();
     startPolling();
     if (settings.firstRun) openPanel();
+    else showGuide(false);
   });
   win.on('closed', () => { win = null; stopPolling(); });
 }
@@ -214,8 +218,16 @@ function openPanel() {
     if (settings.firstRun) {
       settings.firstRun = false;
       store.save();
+      showGuide(true);
     }
   });
+}
+
+// ---------- one-time guide ----------
+
+function showGuide(isNew) {
+  if ((settings.guideSeen || 0) >= GUIDE) return;
+  setTimeout(() => win && win.webContents.send('guide', isNew), 1500);
 }
 
 function togglePanel() {
@@ -488,9 +500,24 @@ ipcMain.on('drag-end', () => {
     settings.position = { x, y };
     store.save();
   } else {
-    win.webContents.send('poke'); // squish reaction
-    togglePanel(); // a click without movement opens the settings panel
+    // a click without movement: the renderer knows what was clicked (the
+    // character plays a motion, the bubble asks for the panel)
+    win.webContents.send('poke');
   }
+});
+
+// only the bubble sends this, so the widget can stop telling where the settings are
+ipcMain.on('toggle-panel', () => {
+  if (!settings.bubbleLearned) {
+    settings.bubbleLearned = true;
+    store.save();
+  }
+  togglePanel();
+});
+
+ipcMain.on('guide-done', () => {
+  settings.guideSeen = GUIDE;
+  store.save();
 });
 
 ipcMain.on('open-menu', () => {

@@ -18,6 +18,8 @@ const DEFAULTS = {
   openAtLogin: false,
   position: null,
   firstRun: true,
+  guideSeen: 0, // last update guide shown in the widget (GUIDE in main.js)
+  bubbleLearned: false, // opened the settings from the bubble (stops the click hint)
 };
 
 // v1.0.0 stored a named color

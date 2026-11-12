@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld('api', {
   dragStart: () => ipcRenderer.send('drag-start'),
   dragEnd: () => ipcRenderer.send('drag-end'),
   openMenu: () => ipcRenderer.send('open-menu'),
+  togglePanel: () => ipcRenderer.send('toggle-panel'),
+  onGuide: (cb) => ipcRenderer.on('guide', (_e, isNew) => cb(isNew)),
+  guideDone: () => ipcRenderer.send('guide-done'),
 
   // settings panel
   closePanel: () => ipcRenderer.send('close-panel'),
