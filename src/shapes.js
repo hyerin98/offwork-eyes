@@ -121,6 +121,32 @@
     },
   };
 
+  // ---------- motion faces ----------
+  // Layers the widget's motions switch on for a moment (style.css). Pupil faces
+  // swap only the pupils, so the chosen expression's eye whites, lids and
+  // decorations stay; closed faces hide the eyes but keep the decorations.
+  // Sizes are fixed (times the pupil size setting) so they read the same on
+  // every expression. When the expression already has that pupil, `alt` is used.
+
+  const PUPIL_FACES = {
+    tiny: { r: 7, draw: dot },
+    wide: { r: 23, draw: shiny },
+    star: { r: 22, draw: star4, same: star4, alt: { r: 28, draw: shiny } },
+    dizzy: { r: 22, draw: spiral, same: spiral, alt: { r: 28, draw: spiral } },
+  };
+
+  const ink9 = (d, ink) => el('path', { d, fill: 'none', stroke: ink, 'stroke-width': 9, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+  const TEAR = '#7CC6FF';
+
+  const CLOSED_FACES = {
+    squeeze: (s, ink) => [ink9(s < 0 ? 'M-17 -20L17 0L-17 20' : 'M17 -20L-17 0L17 20', ink)], // > <
+    smile: (_s, ink) => [ink9('M-22 10Q0 -22 22 10', ink)], // ^ ^
+    cry: (_s, ink) => [ // ㅠㅠ
+      ink9('M-24 -8Q0 6 24 -8', ink),
+      el('path', { d: 'M-14 6Q-20 30 -14 44M14 6Q20 30 14 44', fill: 'none', stroke: TEAR, 'stroke-width': 8, 'stroke-linecap': 'round' }),
+    ],
+  };
+
   const LEGACY = { star: 'sparkle', heart: 'payday' };
   const LIST = Object.keys(EXPRESSIONS);
 
@@ -142,7 +168,7 @@
    * Draws a pair of eyes into `container` (a <g> in a 200x120 coordinate box).
    * Returns the pupil groups to move for tracking and how far each may move.
    */
-  function render(container, key, { pupilColor = '#1E1E1C', pupilSize = 1 } = {}) {
+  function render(container, key, { pupilColor = '#1E1E1C', pupilSize = 1, motionFaces = false } = {}) {
     const ex = EXPRESSIONS[resolve(key)];
     const id = `eyemask-${++uid}`;
     const mask = el('mask', { id, maskUnits: 'userSpaceOnUse', x: -40, y: -60, width: 280, height: 240 });
@@ -169,7 +195,18 @@
       const pr = BASE_PR * (ex.pr || 1) * pupilSize;
       const ext = ex.ext || 1;
       const rest = ex.rest || { x: 0, y: 0 };
-      const inner = el('g', { transform: `translate(${rest.x} ${rest.y})` }, (ex.pupil || dot)(pr, pupilColor));
+      const draw = ex.pupil || dot;
+      let pupilNodes = draw(pr, pupilColor);
+      if (motionFaces) {
+        const fit = Math.min(w.rx, w.ry) - 6; // stay inside narrow eye whites
+        pupilNodes = [el('g', { class: 'pf pf-base' }, pupilNodes)];
+        for (const name in PUPIL_FACES) {
+          const pf = PUPIL_FACES[name].same === draw ? PUPIL_FACES[name].alt : PUPIL_FACES[name];
+          const r = Math.min(fit, pf.r * pupilSize);
+          pupilNodes.push(el('g', { class: `pf pf-${name}` }, pf.draw(r, pupilColor)));
+        }
+      }
+      const inner = el('g', { transform: `translate(${rest.x} ${rest.y})` }, pupilNodes);
       const look = el('g', { class: 'look' }, [inner]);
       pupils.append(el('g', { transform: at }, [look]));
       looks.push(look);
@@ -202,7 +239,14 @@
     });
 
     masked.append(whites, pupils, lines);
-    container.replaceChildren(defs, masked, deco, happy);
+    const closed = [];
+    if (motionFaces) {
+      for (const name in CLOSED_FACES) {
+        closed.push(el('g', { class: `cf cf-${name}` }, EYE_X.map((cx, i) =>
+          el('g', { transform: `translate(${cx} ${EYE_Y})` }, CLOSED_FACES[name](i === 0 ? -1 : 1, ink)))));
+      }
+    }
+    container.replaceChildren(defs, masked, deco, happy, ...closed);
     return { looks, maxOff };
   }
 

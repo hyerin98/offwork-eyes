@@ -229,14 +229,14 @@ html, body {
 #root.m-bounce #bubble { animation: lift 1300ms ease-out 1; z-index: 1; } /* keep the text readable as the body jumps past it */
 #root.m-whine #buddy { animation: whine-body 1000ms ease-in-out 1; }
 #root.m-whine #eyes { animation: whine-face 1000ms ease-in-out 1; }
-#root.m-whine #lids { animation: whine-squint 1000ms ease-in-out 1; }
+#root.m-whine:not(.faces) #lids { animation: whine-squint 1000ms ease-in-out 1; }
 #root.m-stretch #buddy { animation: stretch 1600ms ease-in-out 1; }
-#root.m-stretch #lids { animation: stretch-lids 1600ms ease-in-out 1; }
+#root.m-stretch:not(.faces) #lids { animation: stretch-lids 1600ms ease-in-out 1; }
 #root.m-spin #buddy { animation: spin 1400ms ease-in-out 1; transform-origin: 50% 50%; }
 #root.m-spin #bubble { animation: lift 1400ms ease-out 1; z-index: 1; }
 #root.m-jelly #buddy { animation: jelly 1400ms ease-in-out 1; }
 #root.m-dance #buddy { animation: dance 2000ms ease-in-out 1; }
-#root.m-dance #lids { animation: dance-lids 2000ms ease-in-out 1; }
+#root.m-dance:not(.faces) #lids { animation: dance-lids 2000ms ease-in-out 1; }
 #root.m-walk #buddy { animation: walk 2200ms ease-in-out 1; }
 #root.m-walk #eyes { animation: walk-face 2200ms ease-in-out 1; }
 #root.m-wink #buddy { animation: wink 1300ms ease-in-out 1; }
@@ -246,7 +246,7 @@ html, body {
 #root.m-roll #lids { animation: roll-lids 1600ms ease-in-out 1; }
 #root.m-bow #buddy { animation: bow 1400ms ease-in-out 1; }
 #root.m-bow #eyes { animation: bow-face 1400ms ease-in-out 1; }
-#root.m-bow #lids { animation: bow-lids 1400ms ease-in-out 1; }
+#root.m-bow:not(.faces) #lids { animation: bow-lids 1400ms ease-in-out 1; }
 
 /* wink: the right eye (2nd of each per-eye group) swaps to the closed ^ arc */
 #root.m-wink .masked > g > :nth-child(2),
@@ -256,7 +256,7 @@ html, body {
 #root.m-wink .happy > :nth-child(2) { opacity: 0; animation: wink-shut 1300ms ease-in-out 1; }
 
 #root.m-squish #buddy { animation: squish 560ms ease-out 1; }
-#root.m-squish #lids { animation: squint 560ms ease-out 1; }
+#root.m-squish:not(.faces) #lids { animation: squint 560ms ease-out 1; }
 
 /* crouch, jump high with a waddle in the air, squash on landing */
 @keyframes bounce {
@@ -452,3 +452,60 @@ html, body {
   35% { transform: translateY(-12px) scaleY(1.03); }
   70% { transform: translateY(0) scaleY(0.96); }
 }
+
+/* ---------- motion faces ----------
+   Eye layers drawn by shapes.js (render with motionFaces). Pupil faces swap
+   the pupils (.pf-*) and keep the chosen expression's eye whites and lids;
+   closed faces (.cf-*) hide the eyes (.masked) and keep the decorations.
+   #root.faces is set while a motion plays, except at off time (^ ^ eyes).
+   Windows are in % of each motion and line up with its body keyframes above. */
+
+.pf:not(.pf-base),
+.cf { opacity: 0; }
+
+#root.faces.m-squish .cf-squeeze { animation: squish-cf-squeeze 560ms step-end 1; }
+#root.faces.m-squish .masked { animation: squish-masked 560ms step-end 1; }
+#root.faces.m-bounce .cf-squeeze { animation: bounce-cf-squeeze 1300ms step-end 1; }
+#root.faces.m-bounce .pf-wide { animation: bounce-pf-wide 1300ms step-end 1; }
+#root.faces.m-bounce .pf-base { animation: bounce-pf-base 1300ms step-end 1; }
+#root.faces.m-bounce .masked { animation: bounce-masked 1300ms step-end 1; }
+#root.faces.m-whine .cf-cry { animation: whine-cf-cry 1000ms step-end 1; }
+#root.faces.m-whine .masked { animation: whine-masked 1000ms step-end 1; }
+#root.faces.m-stretch .cf-squeeze { animation: stretch-cf-squeeze 1600ms step-end 1; }
+#root.faces.m-stretch .masked { animation: stretch-masked 1600ms step-end 1; }
+#root.faces.m-spin .cf-squeeze { animation: spin-cf-squeeze 1400ms step-end 1; }
+#root.faces.m-spin .pf-dizzy { animation: spin-pf-dizzy 1400ms step-end 1; }
+#root.faces.m-spin .pf-base { animation: spin-pf-base 1400ms step-end 1; }
+#root.faces.m-spin .masked { animation: spin-masked 1400ms step-end 1; }
+#root.faces.m-jelly .pf-tiny { animation: jelly-pf-tiny 1400ms step-end 1; }
+#root.faces.m-jelly .pf-base { animation: jelly-pf-base 1400ms step-end 1; }
+#root.faces.m-dance .cf-smile { animation: dance-cf-smile 2000ms step-end 1; }
+#root.faces.m-dance .pf-star { animation: dance-pf-star 2000ms step-end 1; }
+#root.faces.m-dance .pf-base { animation: dance-pf-base 2000ms step-end 1; }
+#root.faces.m-dance .masked { animation: dance-masked 2000ms step-end 1; }
+#root.faces.m-bow .cf-smile { animation: bow-cf-smile 1400ms step-end 1; }
+#root.faces.m-bow .masked { animation: bow-masked 1400ms step-end 1; }
+
+@keyframes squish-cf-squeeze { 0% { opacity: 0; } 5% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes squish-masked { 0% { opacity: 1; } 5% { opacity: 0; } 50% { opacity: 1; } }
+@keyframes bounce-cf-squeeze { 0% { opacity: 0; } 12% { opacity: 1; } 28% { opacity: 0; } 60% { opacity: 1; } 80% { opacity: 0; } }
+@keyframes bounce-pf-wide { 0% { opacity: 0; } 28% { opacity: 1; } 60% { opacity: 0; } }
+@keyframes bounce-pf-base { 0% { opacity: 1; } 28% { opacity: 0; } 60% { opacity: 1; } }
+@keyframes bounce-masked { 0% { opacity: 1; } 12% { opacity: 0; } 28% { opacity: 1; } 60% { opacity: 0; } 80% { opacity: 1; } }
+@keyframes whine-cf-cry { 0% { opacity: 0; } 6% { opacity: 1; } 90% { opacity: 0; } }
+@keyframes whine-masked { 0% { opacity: 1; } 6% { opacity: 0; } 90% { opacity: 1; } }
+@keyframes stretch-cf-squeeze { 0% { opacity: 0; } 30% { opacity: 1; } 68% { opacity: 0; } }
+@keyframes stretch-masked { 0% { opacity: 1; } 30% { opacity: 0; } 68% { opacity: 1; } }
+@keyframes spin-cf-squeeze { 0% { opacity: 0; } 12% { opacity: 1; } 30% { opacity: 0; } }
+@keyframes spin-pf-dizzy { 0% { opacity: 0; } 62% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes spin-pf-base { 0% { opacity: 1; } 62% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes spin-masked { 0% { opacity: 1; } 12% { opacity: 0; } 30% { opacity: 1; } }
+@keyframes jelly-pf-tiny { 0% { opacity: 0; } 5% { opacity: 1; } 85% { opacity: 0; } }
+@keyframes jelly-pf-base { 0% { opacity: 1; } 5% { opacity: 0; } 85% { opacity: 1; } }
+@keyframes dance-cf-smile { 0% { opacity: 0; } 8% { opacity: 1; } 78% { opacity: 0; } }
+@keyframes dance-pf-star { 0% { opacity: 0; } 78% { opacity: 1; } 98% { opacity: 0; } }
+@keyframes dance-pf-base { 0% { opacity: 1; } 78% { opacity: 0; } 98% { opacity: 1; } }
+@keyframes dance-masked { 0% { opacity: 1; } 8% { opacity: 0; } 78% { opacity: 1; } }
+@keyframes bow-cf-smile { 0% { opacity: 0; } 22% { opacity: 1; } 66% { opacity: 0; } }
+@keyframes bow-masked { 0% { opacity: 1; } 22% { opacity: 0; } 66% { opacity: 1; } }
+

@@ -80,7 +80,7 @@ function renderPupils(s) {
   const key = `${s.pupilShape}|${s.pupilColor}|${s.pupilSize}`;
   if (key === lastLook) return;
   lastLook = key;
-  rig = Eyes.render(eyeGroup, s.pupilShape, { pupilColor: s.pupilColor, pupilSize: s.pupilSize });
+  rig = Eyes.render(eyeGroup, s.pupilShape, { pupilColor: s.pupilColor, pupilSize: s.pupilSize, motionFaces: true });
   prev[0] = [0, 0];
   prev[1] = [0, 0];
   if (cursor) look(cursor[0], cursor[1], true);
@@ -117,7 +117,7 @@ let motionEnd = null;
 
 function stopMotion() {
   clearTimeout(motionEnd);
-  if (playing) root.classList.remove(`m-${playing}`);
+  if (playing) root.classList.remove(`m-${playing}`, 'faces');
   playing = '';
 }
 
@@ -126,7 +126,10 @@ function play(name) {
   stopMotion();
   void root.offsetWidth; // restart the animation if the same one is playing
   playing = name;
+  // motion faces (eye layers from shapes.js) only over the chosen expression,
+  // not over the ^ ^ eyes at off time
   root.classList.add(`m-${name}`);
+  root.classList.toggle('faces', !happy);
   if (SFX[name] && sfxOn()) SFX[name]();
   // animationend can be missed while the window isn't painted (e.g. covered),
   // and a stuck `playing` would stop idle motions for good
